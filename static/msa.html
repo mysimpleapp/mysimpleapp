@@ -125,7 +125,10 @@ var send = Msa.send = function(method, url, arg1, arg2) {
 	if(body) {
 		// body format
 		var contentType = args.contentType
-		if(contentType===undefined) contentType = 'application/json'
+		if(contentType===undefined){
+      var bodyType = typeof body
+      var contentType = (bodyType==="object") ? 'application/json' : 'text/plain'
+    }
 		if(contentType) xhr.setRequestHeader('Content-Type', contentType)
 		// format 
 		if(contentType==='application/json')

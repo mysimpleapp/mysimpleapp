@@ -9,6 +9,7 @@
   "author": "Nicolas CARREZ",
   "license": "MIT",
   "dependencies": {
+    "body-parser": "^1.18.3",
     "express": "^4.16.3",
     "htmlparser2": "^3.9.2",
     "node-getopt": "^0.3.2"

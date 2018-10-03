@@ -1,5 +1,5 @@
-// require
-const { join, normalize } = require('path')
+// require 2
+const { join } = require('path')
 const fs = require('fs')
 const express = require('express')
 //var fs = require('fs')
@@ -8,10 +8,12 @@ const express = require('express')
 
 // global Msa object
 global.Msa = global.MySimpleApp = {}
-Msa.dirname = normalize(join(__dirname,".."))
+Msa.dirname = __dirname
 //Msa.compsDir = Msa.dirname+'/bower_components'
 //Msa.compsUrl = "/bower_components"
 Msa.express = express
+Msa.bodyParser = require("body-parser")
+//Msa.jsonBodyMdw = Msa.bodyMdw.json()
 
 // html expr
 require('./htmlExpr')
@@ -27,7 +29,11 @@ Msa.params = {
   modules: {
 //    main: "msa_main",
     main: "drawmygame",
-    db: "msa_nedb"
+    db: "msa-nedb",
+    user: "msa-user",
+    fs: "msa-fs",
+    admin: "msa-admin",
+    utils: "msa-utils"
   }
 }
 
@@ -47,6 +53,7 @@ var main = function(){
     start = opts.start
   if(opts.port) Msa.params.server.port = opts.port
 
+  if(start === undefined) start = true
   if(start){
     startMsa()
   }
@@ -56,10 +63,17 @@ var main = function(){
 // start
 
 var startMsa = function() {
-  Msa.app = express()
+  // create modules router
+  Msa.preRouter = express()
   Msa.modulesRouter = express.Router()
-  Msa.app.use(Msa.modulesRouter)
+  // create msa router
+  var msaMod = Msa.module("msa")
+  initMsaModule(msaMod, __dirname)
+  // require msa modules 
   requireMsaModules()
+  // use main moduke
+  Msa.app = Msa.mainMod.app
+  // start server
   startServer()
 }
 
@@ -98,40 +112,61 @@ Msa.module = function(route, args) {
   var mod = {}
   mod.route = route
   // create sub app
-  mod.app = express()
-  mod.app.getAsPartial = getAsPartial
-  // register new module
-  Msa.modules[route] = mod
-  Msa.modulesRouter.use('/'+route, mod.app)
+  mod.app = Msa.subApp()
   return mod
 }
 
+Msa.subApp = function() {
+	var oSubApp = express()
+	oSubApp.getAsPartial = subApp_getAsPartial
+	oSubApp.subApp = subApp_subApp
+	return oSubApp
+}
+
 Msa.require = function(route){
-  var modDir = join(Msa.dirname, "msa_modules", Msa.params.modules[route])
+  var modDir = join(Msa.dirname, "node_modules", Msa.params.modules[route])
   return require(modDir)
 }
 
 var requireMsaModules = function() {
   var modules = Msa.params.modules 
   for(let route in modules){
-    let modDir = join(Msa.dirname, "msa_modules", modules[route]),
+    let modDir = join(Msa.dirname, "node_modules", modules[route]),
         mod = require(modDir)
-    if(route === "main") Msa.app.use(mod.app)
-    let staticDir = modDir+"/static"
-    fs.stat(staticDir, (err, stats) => {
-      if(!err && stats && stats.isDirectory())
-        mod.app.use(Msa.express.static(staticDir))
-    })
+    initMsaModule(mod, modDir)
+  }
+}
+
+var initMsaModule = function(mod, modDir) {
+  // static files
+  mod.dirname = modDir
+  var staticDir = modDir+"/static"
+  fs.stat(staticDir, (err, stats) => {
+    if(!err && stats && stats.isDirectory())
+      mod.app.use(Msa.express.static(staticDir))
+  })
+  // register module
+  var route = mod.route
+  if(route==='') Msa.mainMod = mod
+  else {
+    Msa.modules[route] = mod
+    Msa.modulesRouter.use('/'+route, mod.app)
   }
 }
 
 // shortcut function to server HTML content as partial
-var getAsPartial = function(route, htmlExpr) {
+const subApp_getAsPartial = function(route, htmlExpr) {
   var partial = Msa.formatHtml(htmlExpr)
   return this.get(route, function(req, res, next) {
     res.partial = partial
     next()
   })
+}
+
+const subApp_subApp = function(route) {
+	var oSubApp = Msa.subApp()
+	this.use(route, oSubApp)
+	return oSubApp
 }
 
 main()
