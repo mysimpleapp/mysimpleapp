@@ -169,4 +169,10 @@ const subApp_subApp = function(route) {
 	return oSubApp
 }
 
+// utils
+
+Msa.joinUrl = function(...args){
+	return args.join('/').replace(/\/+/g,'/')
+}
+
 main()
