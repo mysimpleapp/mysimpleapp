@@ -29,7 +29,7 @@ Msa.params = {
   modules: {
 //    main: "msa_main",
     main: "drawmygame",
-    db: "msa-nedb",
+    db: "msa-sqlite",
     user: "msa-user",
     fs: "msa-fs",
     admin: "msa-admin",
