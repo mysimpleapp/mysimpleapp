@@ -113,6 +113,8 @@ var send = Msa.send = function(method, url, arg1, arg2) {
 				xhr.onstatus401 = xhr.onstatus403 = args[evt]
 			else xhr[evt] = args[evt]
 		}
+		// res format
+		xhr.parseRes = args.parseRes
 	}
 	// onsuccess
 	if(onsuccess) xhr.onsuccess = onsuccess
@@ -157,12 +159,13 @@ var _send_defaultOnload = function(evt) {
 var _send_parseRes = function(evt, next){
 	if(!next) return
 	var xhr = evt.target
+	var parseRes = (xhr.parseRes !== false)
 	var type = xhr.getResponseHeader('content-type').split(';')[0]
-	if(type==='application/json'){
+	if(parseRes && type==='application/json'){
 		var res = xhr.responseText
 		var json = res ? JSON.parse(res) : null
 		next(json, evt)
-	} else if(type==='application/xml'){
+	} else if(parseRes && type==='application/xml'){
 		next(xhr.responseXML, evt)
 	} else {
 		next(xhr.responseText, evt)
