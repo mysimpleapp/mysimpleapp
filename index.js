@@ -19,7 +19,7 @@ Msa.dirname = __dirname
 Msa.express = express
 Msa.bodyParser = require("body-parser")
 //Msa.jsonBodyMdw = Msa.bodyMdw.json()
-Msa.paramsFile = join(__dirname, "msa_params.json")
+Msa.paramsFiles = []
 
 // html expr
 require('./htmlExpr')
@@ -46,12 +46,12 @@ const main = async function(next){
 
 		// get input args
 		const argv = process.argv
-		var action, mod, params, paramsFile, yes=false, force=false
+		var action, mod, params=[], paramsFiles=[], yes=false, force=false
 		for(let i=2; i<argv.length; ++i){
 			arg = argv[i]
 			if(arg==="-h" || arg==="--help") { console.log(help); return next() }
-			else if(arg==="-p" || arg==="--params") params = argv[++i]
-			else if(arg==="-pf" || arg==="--params-file") paramsFile = argv[++i]
+			else if(arg==="-p" || arg==="--params") params.push(argv[++i])
+			else if(arg==="-pf" || arg==="--params-file") paramsFiles.push(argv[++i])
 			else if(arg==="-y" || arg==="--yes") yes = true
 			else if(arg==="-f" || arg==="--force") force = true
 			else if(!action && arg[0]!=='-') action = arg
@@ -59,17 +59,25 @@ const main = async function(next){
 			else { console.error(`Unknown option ${arg}`); process.exit(1) }
 		}
 
-		// fill params, if provided
-		if(!params){
-			if(paramsFile) {
-				if(! await fileExists(paramsFile))
-					throw `ERROR: Param file does not exist: ${paramsFile}`
-				Msa.paramsFile = paramsFile
+		// fill Msa.paramsFiles
+		const defParamFile = join(__dirname, "msa_params.json")
+		if(await fileExists(defParamFile))
+			Msa.paramsFiles.push(defParamFile)
+		for(let f of paramsFiles)
+			Msa.paramsFiles.push(f)
+
+		// fill Msa.params
+		for(let f of Msa.paramsFiles){
+			try {
+				const p = await readFile(f)
+				deepMerge(Msa.params, JSON.parse(p))
+			} catch(err) {
+				console.warn(`Could not read & parse params file "${f}"`)
+				console.log(err)
 			}
-			if(await fileExists(Msa.paramsFile))
-				params = await readFile(Msa.paramsFile)
 		}
-		if(params) deepMerge(Msa.params, JSON.parse(params))
+		for(let p of params)
+			deepMerge(Msa.params, JSON.parse(p))
 
 		// action
 		if(!action || action == "install")
@@ -85,6 +93,7 @@ const main = async function(next){
 
 // default params
 Msa.params = {
+  log_level: 'DEBUG',
   server: {
     port: "dev",
     https: {
@@ -364,7 +373,7 @@ Msa.module = function(route, args) {
 
 Msa.subApp = function() {
 	var oSubApp = express()
-	oSubApp.getAsPartial = subApp_getAsPartial
+//	oSubApp.getAsPartial = subApp_getAsPartial
 	oSubApp.subApp = subApp_subApp
 	return oSubApp
 }
@@ -400,24 +409,36 @@ var initMsaModule = function(mod, modDir) {
   }
 }
 
-// shortcut function to server HTML content as partial
-const subApp_getAsPartial = function(route, htmlExpr) {
-  var partial = Msa.formatHtml(htmlExpr)
-  return this.get(route, function(req, res, next) {
-    res.partial = partial
-    next()
-  })
-}
-
 const subApp_subApp = function(route) {
 	var oSubApp = Msa.subApp()
 	this.use(route, oSubApp)
 	return oSubApp
 }
+/*
+// partial
+
+const Partial = Msa.Partial = class {
+	constructor(htmlExpr) {
+		formatHtml(htmlExpr, this)
+	}
+}
+
+// shortcut function to server HTML content as partial
+const subApp_getAsPartial = function(route, htmlExpr) {
+//  var partial = Msa.formatHtml(htmlExpr)
+	const partial = new Partial(htmlExpr)
+	return this.get(route, function(req, res, next) {
+//		res.partial = partial
+		next(partial)
+	})
+}
+*/
 
 // utils
 
-const isArr = Array.isArray
+const { isArray: isArr } = Array
+
+const { formatHtml } = Msa
 
 Msa.joinUrl = function(...args){
 	return args.join('/').replace(/\/+/g,'/')

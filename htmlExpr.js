@@ -3,7 +3,8 @@ const { join, resolve, basename } = require('path')
 const htmlparser2 = require("htmlparser2")
 
 // convert HTML expression to HTML object
-Msa.formatHtml = function(htmlExpr) {
+Msa.formatHtml = function(htmlExpr, res) {
+	if(!res) res = {}
 	// fill head & body objects
 	var head = new Set(), body = []
 	_formatHtml_core(htmlExpr, head, body, false)
@@ -13,7 +14,9 @@ Msa.formatHtml = function(htmlExpr) {
 	for(var h of head)
 		headStr += h
 	// return HTML string
-	return { head:headStr, body:bodyStr }
+	res.head = headStr
+	res.body = bodyStr
+	return res
 }
 var _formatHtml_core = function(htmlExpr, head, body, isHead) {
 	var type = typeof htmlExpr

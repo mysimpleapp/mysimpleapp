@@ -105,7 +105,7 @@ var send = Msa.send = function(method, url, arg1, arg2) {
 	if(args) {
 		var query = args.query
 		var body = args.body
-		var header = args.header
+		var headers = args.headers || args.header
 		// callbacks
 		for(var evt in args) {
 			if(evt.substring(0, 2)!="on") continue
@@ -137,9 +137,9 @@ var send = Msa.send = function(method, url, arg1, arg2) {
 			body = JSON.stringify(body)
 	}
 	// header
-	if(header)
-		for(var h in header)
-			xhr.setRequestHeader(h, header[h])
+	if(headers)
+		for(var h in headers)
+			xhr.setRequestHeader(h, headers[h])
 	// send request
 	xhr.send(body)
 }
