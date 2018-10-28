@@ -116,10 +116,12 @@ ParamDescPt.save = function() {
 	ParamDescSaveStack = ParamDescSaveStack.then(() => {
 		return new Promise( async (ok, ko) => {
 			try {
-				const params = JSON.parse( await readFile(Msa.paramsFile) )
+				const paramFile = Msa.paramsFile[0]
+				if(!paramFile) throw "No params file to save in."
+				const params = JSON.parse( await readFile(paramsFile) )
 				const key = this.key, val = Msa.getParam(key)
 				Msa.setParamCore(params, key, val)
-				await writeFile(Msa.paramsFile, JSON.stringify(params, null, 2))
+				await writeFile(paramsFile, JSON.stringify(params, null, 2))
 			} catch(err) { return ko(err) }
 			ok()
 		})
@@ -316,19 +318,47 @@ const startMsa = function() {
 	return new Promise((ok, ko) => {
 		try {
 			// create modules router
-			Msa.preRouter = express()
+//			Msa.preRouter = express()
 			Msa.modulesRouter = express.Router()
+			var msa_modules = Msa.params.msa_modules || {} 
+			// start msa modules
+			for(let modName of msa_modules)
+				await Msa.start(modName)
 			// create msa router
 			var msaMod = Msa.module("msa")
 			initMsaModule(msaMod, __dirname)
 			// require msa modules 
-			requireMsaModules()
+			for(let modName of msa_modules){
+				let modDir = join(Msa.dirname, "node_modules", modName),
+					mod = require(modDir)
+				initMsaModule(mod, modDir)
+			}
 			// use main moduke
 			Msa.app = Msa.mainMod.app
 			// start server
 			startServer()
 		} catch(err) { return ko(err) }
 		ok()
+	})
+}
+
+const startedMods = {}
+Msa.start = function(mod){
+	return new Promise((ok, ko) => {
+		try {
+			// start only once
+			var res = startedMods[mod]
+			if(res !== undefined) return ok(res)
+			res = startedMods[mod] = null
+			// msa_install
+			const modPath = require.resolve(mod, { paths:[Msa.dirname] })
+			const msaStartPath = tryResolve( join(dirname(modPath), "msa_start") )
+			if(msaStartPath) {
+				const msaStartPrm = prm(require(msaStartPath))
+				res = startedMods[mod] = await msaStartPrm()
+			}
+			ok(res)
+		} catch(err){ ok(err) }
 	})
 }
 
@@ -379,10 +409,10 @@ Msa.subApp = function() {
 }
 
 Msa.require = function(route){
-  var modDir = join(Msa.dirname, "node_modules", Msa.params.msa_modules[route])
+  const modDir = join(Msa.dirname, "node_modules", Msa.params.msa_modules[route])
   return require(modDir)
 }
-
+/*
 var requireMsaModules = function() {
   var msa_modules = Msa.params.msa_modules || {} 
   for(let route in msa_modules){
@@ -391,7 +421,7 @@ var requireMsaModules = function() {
     initMsaModule(mod, modDir)
   }
 }
-
+*/
 var initMsaModule = function(mod, modDir) {
   // static files
   mod.dirname = modDir
