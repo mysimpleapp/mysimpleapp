@@ -392,13 +392,16 @@ var startServer = function() {
 // modules
 
 Msa.modules = {}
-Msa.module = function(route, args) {
-  // create new module
-  var mod = {}
-  mod.route = route
-  // create sub app
-  mod.app = Msa.subApp()
-  return mod
+
+Msa.Module = class {
+	constructor(route) {
+		this.route = route
+		this.app = Msa.subApp()
+	}
+}
+
+Msa.module = function(route) {
+	return new Msa.Module(route)
 }
 
 Msa.subApp = function() {
