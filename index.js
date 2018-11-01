@@ -315,21 +315,21 @@ InstallInterfacePt.installMsaMod = function(modKey, mod, kwargs){
 // start //////////////////////////////////
 
 const startMsa = function() {
-	return new Promise((ok, ko) => {
+	return new Promise(async (ok, ko) => {
 		try {
 			// create modules router
 //			Msa.preRouter = express()
 			Msa.modulesRouter = express.Router()
 			var msa_modules = Msa.params.msa_modules || {} 
 			// start msa modules
-			for(let modName of msa_modules)
-				await Msa.start(modName)
+			for(let modRoute in msa_modules)
+				await Msa.start(msa_modules[modRoute])
 			// create msa router
 			var msaMod = Msa.module("msa")
 			initMsaModule(msaMod, __dirname)
 			// require msa modules 
-			for(let modName of msa_modules){
-				let modDir = join(Msa.dirname, "node_modules", modName),
+			for(let modRoute in msa_modules){
+				let modDir = join(Msa.dirname, "node_modules", msa_modules[modRoute]),
 					mod = require(modDir)
 				initMsaModule(mod, modDir)
 			}
@@ -344,7 +344,7 @@ const startMsa = function() {
 
 const startedMods = {}
 Msa.start = function(mod){
-	return new Promise((ok, ko) => {
+	return new Promise(async (ok, ko) => {
 		try {
 			// start only once
 			var res = startedMods[mod]
@@ -358,7 +358,7 @@ Msa.start = function(mod){
 				res = startedMods[mod] = await msaStartPrm()
 			}
 			ok(res)
-		} catch(err){ ok(err) }
+		} catch(err){ ko(err) }
 	})
 }
 
