@@ -9,16 +9,16 @@
   "author": "Nicolas CARREZ",
   "license": "MIT",
   "dependencies": {
+    "@webcomponents/webcomponentsjs": "^2.2.1",
     "body-parser": "^1.18.3",
     "express": "^4.16.3",
     "htmlparser2": "^3.9.2",
+    "drawmygame": "/home/nico/dev/drawmygame",
     "msa-admin": "/home/nico/dev/msa-admin",
+    "msa-db": "/home/nico/dev/msa-db",
     "msa-fs": "/home/nico/dev/msa-fs",
     "msa-main": "/home/nico/dev/msa-main",
-    "msa-sqlite": "/home/nico/dev/msa-sqlite",
     "msa-user": "/home/nico/dev/msa-user",
-    "msa-utils": "/home/nico/dev/msa-utils",
-    "drawmygame": "/home/nico/dev/drawmygame",
-    "node-getopt": "^0.3.2"
+    "msa-utils": "/home/nico/dev/msa-utils"
   }
 }

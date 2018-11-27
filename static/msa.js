@@ -1,102 +1,29 @@
-<script>
-(function(){
-
-if(!window.Msa) Msa = MySimpleApp = {}
-
-// ower document
-Msa.compsUrl = "/bower_components"
-var getDoc = Msa.getDoc = function() {
-	var script = document._currentScript || document.currentScript
-	var doc = script.ownerDocument
-	if(!doc) console.warn("Msa.getDoc() failed ! Do not use it in a callback function.")
-	return doc
-}
-var getUrl = Msa.getUrl = function() {
-	var doc = getDoc()
-	if(doc) return doc._URL || doc.URL
-}
-var getDirUrl = Msa.getDirUrl = function() {
-	var file = getUrl()
-	if(!file) return null
-	var last = file.lastIndexOf("/")
-	return file.substr(0, last)
-}
-
-// registerElement
-Msa.registerElement = function(name, args) {
-	var proto = Object.create(HTMLElement.prototype)
-	if(args) {
-		var template = getTemplate(args, "template")
-		var shadow = getTemplate(args, "shadow")
-		var createdCallback = addCallback(proto, args, "createdCallback", "oncreate")
-		addCallback(proto, args, "attachedCallback", "onattach")
-		addCallback(proto, args, "detachedCallback", "ondetach")
-		addCallback(proto, args, "attributeChangedCallback", "onchange")
-	}
-	proto.createdCallback = function() {
-		if(template) {
-			this.innerHTML = ""
-			appendContent(this, template)
-		}
-		if(shadow) appendContent(this.createShadowRoot(), shadow)
-		if(createdCallback) createdCallback.call(this)
-	}
-	if (shadow && window.ShadowDOMPolyfill) WebComponents.ShadowCSS.shimStyling(shadow.content, name)
-	return document.registerElement(name, {prototype: proto})
-}
-var getTemplate = function(args, name) {
-	var template = args[name]
-	if(typeof template == "string")
-		template = getDoc().querySelector(template)
-	return template
-}
-var appendContent = function(el, template) {
-	var content = document.importNode(template.content, true)
-	el.appendChild(content)
-}
-var addCallback = function(proto, args, fullName, shortName) {
-	return proto[fullName] = args[fullName] || args[shortName]
-}
-
-// helpers //////////////////////////////////////////////
-
 // method for cached query in dom
-Msa.Q = function(query) {
-	var qels = this.Qels
+export function Q(query) {
+	var qels = this._Qels
 	if(qels===undefined)
-		qels = this.Qels = {}
+		qels = this._Qels = {}
 	var el = qels[query]
 	if(el===undefined)
 		el = qels[query] = this.querySelector(query)
 	return el
 }
 
-// add actions to element
-Msa.addActions = function(el, actions, name) {
-	// for each action
-	for(var i=0, len=actions.length; i<len; ++i) {
-		var action = actions[i]
-		var aElStr = action.el, evt = action.evt
-		let act = action.act
-		var listener = function(evt){
-			act.call(el, evt, this)
-		}
-		// find matching child elements
-		var aEls = el.querySelectorAll(aElStr)
-		// for each of them
-		for(var j=0, len2=aEls.length; j<len2; ++j) {
-			var aEl = aEls[j]
-			// add listener
-			aEl.addEventListener(evt, listener)
-			// add reference to holder element (if requested)
-			if(name) aEl[name] = el
-		}
-	}
+// method for cached query in shadow dom
+export function S(query) {
+	var sels = this._Sels
+	if(sels===undefined)
+		sels = this._Sels = {}
+	var el = sels[query]
+	if(el===undefined)
+		el = sels[query] = this.shadowRoot.querySelector(query)
+	return el
 }
 
-// send //////////////////////////////////////////////
 
-var send = Msa.send = function(method, url, arg1, arg2) {
+// ajax //////////////////////////////////////////////
+
+export function ajax(method, url, arg1, arg2) {
 	if(typeof arg1==="function") var onsuccess=arg1
 	else var args=arg1, onsuccess=arg2
 	// build & send XMLHttpRequest
@@ -119,7 +46,7 @@ var send = Msa.send = function(method, url, arg1, arg2) {
 	// onsuccess
 	if(onsuccess) xhr.onsuccess = onsuccess
 	// default onload
-	if(!xhr.onload) xhr.onload = _send_defaultOnload
+	if(!xhr.onload) xhr.onload = _ajax_defaultOnload
 	// url (with query)
 	if(query) url = formatUrl(url, query)
 	xhr.open(method, url, true)
@@ -143,20 +70,16 @@ var send = Msa.send = function(method, url, arg1, arg2) {
 	// send request
 	xhr.send(body)
 }
-Msa.get = function(url, arg1, arg2) { send("GET", url, arg1, arg2) }
-Msa.post = function(url, arg1, arg2) { send("POST", url, arg1, arg2) }
-Msa.put = function(url, arg1, arg2) { send("PUT", url, arg1, arg2) }
-Msa.delete = function(url, arg1, arg2) { send("DELETE", url, arg1, arg2) }
 
-var _send_defaultOnload = function(evt) {
+const _ajax_defaultOnload = function(evt) {
 	var xhr = evt.target, status = xhr.status
-	_send_parseRes(evt, xhr["onstatus"+status])
+	_ajax_parseRes(evt, xhr["onstatus"+status])
 	if(status>=200 && status<300)
-		_send_parseRes(evt, xhr.onsuccess)
+		_ajax_parseRes(evt, xhr.onsuccess)
 	if(status>=400)
-		_send_parseRes(evt, xhr.onerror)
+		_ajax_parseRes(evt, xhr.onerror)
 }
-var _send_parseRes = function(evt, next){
+const _ajax_parseRes = function(evt, next){
 	if(!next) return
 	var xhr = evt.target
 	var parseRes = (xhr.parseRes !== false)
@@ -174,7 +97,7 @@ var _send_parseRes = function(evt, next){
 
 // URL serialization /////////////////////////////////////////////
 
-var formatUrl = Msa.formatUrl = function(arg1, arg2) {
+export function formatUrl(arg1, arg2) {
 	// get base from location, if not provided
 	if(arg2!==undefined) var base = arg1, args = arg2
 	else var args = arg1, loc = window.location, base = loc.origin + loc.pathname
@@ -186,7 +109,7 @@ var formatUrl = Msa.formatUrl = function(arg1, arg2) {
 	}
 	return res
 }
-var formatUrlArgs = Msa.formatUrlArgs = function(args) {
+export function formatUrlArgs(args) {
 	var res = []
 	for(var a in args) {
 		var val = args[a]
@@ -196,7 +119,7 @@ var formatUrlArgs = Msa.formatUrlArgs = function(args) {
 	return res.join("&")
 }
 
-var parseUrl = Msa.parseUrl = function(str) {
+export function parseUrl(str) {
 	// get string from location, if not provided
 	if(str===undefined) str = window.location.href
 	var res = { base:null, args:null }
@@ -207,7 +130,7 @@ var parseUrl = Msa.parseUrl = function(str) {
 		res.args = parseUrlArgs(argsStr)
 	return res
 }
-var parseUrlArgs = Msa.parseUrlArgs = function(str) {
+export function parseUrlArgs(str) {
 	// get string from location, if not provided
 	if(str===undefined) str = window.location.search.substring(1)
 	// parse args
@@ -221,10 +144,10 @@ var parseUrlArgs = Msa.parseUrlArgs = function(str) {
 }
 
 // formatHtml: format HTML expression to HTML object
-Msa.formatHtml = function(htmlExpr) {
+export function formatHtml(htmlExpr) {
 	return _formatHtml(htmlExpr, true)
 }
-var _formatHtml = function(htmlExpr, isHead) {
+const _formatHtml = function(htmlExpr, isHead) {
 	// fill head & body objects
 	var head = new Set(), body = []
 	_formatHtml_core(htmlExpr, head, body, isHead)
@@ -239,7 +162,7 @@ var _formatHtml = function(htmlExpr, isHead) {
 	// return HTML string
 	return { head:headStr, body:bodyStr }
 }
-var _formatHtml_core = function(htmlExpr, head, body, isHead) {
+const _formatHtml_core = function(htmlExpr, head, body, isHead) {
 	var type = typeof htmlExpr
 	// case string
 	if(type==="string") {
@@ -322,7 +245,7 @@ var _formatHtml_core = function(htmlExpr, head, body, isHead) {
 		}
 	}
 }
-var _formatHtml_style = function(style) {
+const _formatHtml_style = function(style) {
 	var type = typeof style
 	if(type==="string") return style
 	else if(type==="object") {
@@ -331,56 +254,94 @@ var _formatHtml_style = function(style) {
 		return str
 	}
 }
-var _formatHtml_push = function(html, head, body, isHead) {
+const _formatHtml_push = function(html, head, body, isHead) {
 	if(isHead) head.add(html)
 	else body.push(html)
 }
-var _formatHtml_getWelTag = function(wel) {
+const _formatHtml_getWelTag = function(wel) {
 	return /([a-zA-Z0-9-_]*)\.html$/.exec(wel)[1]
 }
-var _formatHtml_toUrl = function(url) {
+const _formatHtml_toUrl = function(url) {
 	return url
 }
 
-// import
-Msa.import = function(html, el, args) {
-	if(typeof args==='function') args = { onload: args }
-	var html = _formatHtml(html, true)
-	var head = html.head, body = html.body
-	var onload = args && args.onload, onerror = args && args.onerror
-	var newEls = [], nbLoading = 1, nbErrs = 0
-	var waiter = function() {
+// importHtml
+
+// cache of promises on any content imported into document head
+const ImportCache = {}
+
+export function importHtml(html, el) {
+	html = _formatHtml(html, true)
+	const head = html.head, body = html.body
+	const newEls = []
+/*
+	let nbLoading = 1, nbErrs = 0
+	const waiter = () => {
 		if(--nbLoading===0) {
 			if(nbErrs>0 ) { if(onerror) onerror() }
 			else if(onload) onload(newEls)
 		}
 	}
+*/
+	const loads = []
 	if(head) {
-		var template = document.createElement("template")
-		template.innerHTML = head
-		var children=template.content.children, len=children.length
-		nbLoading += len
-		for(var i=0; i<len; ++i) {
-			var clone = document.importNode(children[i], true)
-			clone.addEventListener("load", waiter)
-			clone.addEventListener("error", function(){
-				nbErrs += 1
-				waiter()
-			})
-			document.head.appendChild(clone)
+		// parse input head content
+		const headTemplate = document.createElement("template")
+		headTemplate.innerHTML = head
+		// for each inpu head element 
+		for(let h of headTemplate.content.children) {
+			// check if it is already in cache
+			const hHtml = h.outerHTML
+			let prm = ImportCache[hHtml]
+			if(!prm) {
+				// create promise to load input head
+				const h2 = cloneEl(h) // hack to force scripts to load
+				prm = ImportCache[hHtml] = new Promise((ok, ko) => {
+					h2.addEventListener("load", ok)
+					h2.addEventListener("error", ko)
+					document.head.appendChild(h2)
+				})
+			}
+			loads.push(prm)
 		}
 	}
 	if(body) {
-		var template = document.createElement("template")
-		template.innerHTML = body
-		var children=template.content.childNodes, len=children.length
-		for(var i=0; i<len; ++i) {
-			var clone = document.importNode(children[i], true)
-			if(el) el.appendChild(clone)
-			newEls.push(clone)
+		const bodyTemplate = document.createElement("template")
+		bodyTemplate.innerHTML = body
+		for(let b of bodyTemplate.content.children) {
+			newEls.push(b)
+			if(el) el.appendChild(b)
 		}
 	}
-	waiter()
+	return new Promise((ok, ko) => {
+		Promise.all(loads)
+			.then(() => ok(newEls))
+			.catch(ko)
+	})
 }
-})()
-</script>
+
+export function importOnCall(html, fun) {
+	return function(...args) {
+		importHtml(html).then(() => {
+			deepGet(window, fun)(...args)
+		})
+	}
+}
+
+function cloneEl(el) {
+	const el2 = document.createElement(el.tagName)
+	for(let att of el.attributes)
+		el2.setAttribute(att.name, att.value)
+	el2.innerHTML = el.innerHTML
+	return el2
+}
+
+function deepGet(obj, key) {
+	const keys = key.split('.')
+	for(let k of keys) {
+		if(obj === undefined) return
+		obj = obj[k]
+	}
+	return obj
+}
+

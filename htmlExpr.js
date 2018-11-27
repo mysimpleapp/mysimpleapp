@@ -41,8 +41,14 @@ var _formatHtml_core = function(htmlExpr, head, body, isHead) {
 			var wel = htmlExpr.webelement || htmlExpr.wel
 			// web element
 			if(wel) {
-				_formatHtml_core({import:wel}, head, body, isHead)
-				tag = tag || _formatHtml_getWelTag(wel)
+				const ext = wel.split(".").pop()
+				if(ext === "html"){
+					_formatHtml_core({ import:wel }, head, body, isHead)
+					tag = tag || basename(wel, '.html')
+				} else if(ext === "js"){
+					_formatHtml_core({ script:wel, attrs:{ type:"module" }}, head, body, isHead)
+					tag = tag || basename(wel, '.js')
+				}
 				isHead = false
 			}
 			// html import
@@ -81,9 +87,11 @@ var _formatHtml_core = function(htmlExpr, head, body, isHead) {
 				if(attrs)
 					for(var a in attrs) {
 						var val = attrs[a]
-						if(style) { a='style'; val=style }
-						if(a=='style') val = _formatHtml_style(val)
-						str += ' '+ a +'="'+ val +'"'
+						if(val !== undefined) {
+							if(style) { a='style'; val=style }
+							if(a=='style') val = _formatHtml_style(val)
+							str += ' '+ a +'="'+ val +'"'
+						}
 					}
 				str += '>'
 				_formatHtml_push(str, head, body, isHead)
@@ -111,7 +119,7 @@ var _formatHtml_push = function(html, head, body, isHead) {
 	if(isHead) head.add(html)
 	else body.push(html)
 }
-var _formatHtml_getWelTag = function(wel) {		
+var _formatHtml_getWelTag = function(wel) {
 	return basename(wel, '.html')
 }
 
@@ -149,7 +157,7 @@ Msa.parseHtml = function(html) {
 		},
 		onclosetag: function(tag){
 			domStack.pop()
-	    }
+		}
 	}, {decodeEntities: true})
 	parser.write(html)
 	parser.end()
