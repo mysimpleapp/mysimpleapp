@@ -1,3 +1,4 @@
 node_modules
 nedb
 db.sqlite
+*.swp

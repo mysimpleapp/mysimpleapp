@@ -325,7 +325,7 @@ const startMsa = function() {
 			for(let modRoute in msa_modules)
 				await Msa.start(msa_modules[modRoute])
 			// create msa router
-			var msaMod = Msa.module("msa")
+			var msaMod = new Msa.Module("msa")
 			initMsaModule(msaMod, __dirname)
 			// require msa modules 
 			for(let modRoute in msa_modules){
@@ -398,10 +398,6 @@ Msa.Module = class {
 		this.route = route
 		this.app = Msa.subApp()
 	}
-}
-
-Msa.module = function(route) {
-	return new Msa.Module(route)
 }
 
 Msa.subApp = function() {
