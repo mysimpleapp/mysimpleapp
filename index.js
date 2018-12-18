@@ -102,33 +102,65 @@ Msa.params = {
   }
 }
 
-Msa.paramsDescs = {}
+Msa.paramDefs = {}
+//Msa.paramsDescs = {}
 
-Msa.ParamDesc = class {
+Msa.ParamDef = class {
 	constructor(key, kwargs){
 		this.key = key
 		Object.assign(this, kwargs)
+		// register
+		Msa.paramDefs[this.key] = this
+		// init value
+		this.init()
 	}
 }
-var ParamDescPt = Msa.ParamDesc.prototype
+const ParamDefPt = Msa.ParamDef.prototype
 
-ParamDescPt.save = function() {
-	ParamDescSaveStack = ParamDescSaveStack.then(() => {
-		return new Promise( async (ok, ko) => {
+ParamDefPt.init = function() {
+	if(this.get() === undefined && this.defVal !== undefined)
+		this.set(this.defVal)
+}
+
+ParamDefPt.get = function() {
+	return getDeep(Msa.params, this.key)
+}
+
+ParamDefPt.set = function(val, kwargs) {
+	this.val = val
+	setDeep(Msa.params, this.key, val)
+	if(!kwargs || kwargs.save !== false)
+		this.save()
+}
+
+ParamDefPt.save = function() {
+	ParamDefSaveStack = ParamDefSaveStack.then(() => {
+		return new Promise(async (ok, ko) => {
 			try {
 				const paramFile = Msa.paramsFile[0]
 				if(!paramFile) throw "No params file to save in."
-				const params = JSON.parse( await readFile(paramsFile) )
-				const key = this.key, val = Msa.getParam(key)
-				Msa.setParamCore(params, key, val)
+				const params = JSON.parse(await readFile(paramsFile))
+				const key = this.key, val = this.val
+				setDeep(params, key, val)
 				await writeFile(paramsFile, JSON.stringify(params, null, 2))
 			} catch(err) { return ko(err) }
 			ok()
 		})
 	})
 }
-var ParamDescSaveStack = Promise.resolve()
+let ParamDefSaveStack = Promise.resolve()
 
+Msa.getParam = function(key) {
+	return getDeep(Msa.params, key)
+}
+
+Msa.setParam = function(key, val, kwargs) {
+	const def = Msa.paramDefs[key]
+	if(def) def.set(val, kwargs)
+	else setDeep(Msa.params, key, val)
+}
+
+/*
 Msa.registerParam = function(arg1, arg2){
 	const targ1 = typeof arg1
 	if(targ1 == "string")
@@ -143,36 +175,36 @@ const _registerParam = function(key, desc){
 	if(val === undefined && desc.defVal !== undefined)
 		Msa.setParam(key, desc.defVal)
 }
-
-Msa.getParam = function(key){
+*/
+function getDeep(obj, key){
 	const keys = key.split('.')
-	var obj = Msa.params
 	for(let k of keys){
 		obj = obj[k]
-		if(obj===undefined) return undefined
+		if(obj===undefined) return
 	}
 	return obj
 }
-
-Msa.setParam = function(key, val){
-	return new Promise(async (ok, ko) => {
-		try {
-			// update val in Msa.params
-			Msa.setParamCore(Msa.params, key, val)
-			// save
-			const desc = Msa.paramsDescs[key]
-			if(desc) await desc.save()
-		} catch(err) { return ko(err) }
-		ok()
-	})
+/*
+Msa.setParam = function(key, val, kwargs){
+	// update val in Msa.params (synchronouly)
+	const desc = Msa.paramsDescs[key]
+	desc.val = val
+	_setParamInObj(Msa.params, key, val)
+	// save (asynchronously)
+	if(!kwargs || kwargs.save!==false) {
+		return new Promise(async (ok, ko) => {
+			try {
+				if(desc) await desc.save()
+			} catch(err) { return ko(err) }
+			ok()
+		})
+	}
 }
-
-Msa.setParamCore = function(params, key, val) {
+*/
+function setDeep(obj, key, val) {
 	const keys = key.split('.'), len = keys.length
-	var obj = params
 	for(let i=0; i<len-1; ++i){
-		let k = keys[i]
-		let obj2 = obj[k]
+		let k = keys[i], obj2 = obj[k]
 		if(obj2 === undefined)
 			obj2 = obj[k] = {}
 		obj = obj2
@@ -266,9 +298,9 @@ InstallInterfacePt.questionParam = function(param){
 			// format questions
 			let questions = []
 			for(let p of params) {
-				const paramKey = p.key, paramDesc = Msa.paramsDescs[paramKey]
+				const paramKey = p.key, paramDef = Msa.paramDefs[paramKey]
 				const question = p.question || `Choose a value for this parameter "${paramKey}"`
-				const { choices, defVal } = Object.assign(p, paramDesc)
+				const { choices, defVal } = Object.assign(p, paramDef)
 				questions.push({ question, choices, defVal })
 			}
 			// ask questions
@@ -394,21 +426,21 @@ var startServer = function() {
 Msa.modules = {}
 
 Msa.Module = class {
-	constructor(route) {
-		this.route = route
+	constructor(key) {
+		this.key = key
 		this.app = Msa.subApp()
 	}
 }
 
 Msa.subApp = function() {
-	var oSubApp = express()
+	const oSubApp = express()
 //	oSubApp.getAsPartial = subApp_getAsPartial
 	oSubApp.subApp = subApp_subApp
 	return oSubApp
 }
 
-Msa.require = function(route){
-  const modDir = join(Msa.dirname, "node_modules", Msa.params.msa_modules[route])
+Msa.require = function(key){
+  const modDir = join(Msa.dirname, "node_modules", Msa.params.msa_modules[key])
   return require(modDir)
 }
 /*
@@ -430,11 +462,11 @@ var initMsaModule = function(mod, modDir) {
       mod.app.use(Msa.express.static(staticDir))
   })
   // register module
-  var route = mod.route
-  if(route==='') Msa.mainMod = mod
+  var key = mod.key
+  if(key==='') Msa.mainMod = mod
   else {
-    Msa.modules[route] = mod
-    Msa.modulesRouter.use('/'+route, mod.app)
+    Msa.modules[key] = mod
+    Msa.modulesRouter.use('/'+key, mod.app)
   }
 }
 
