@@ -35,6 +35,7 @@ var _formatHtml_core = function(htmlExpr, head, body, isHead) {
 			var cnt = htmlExpr.content || htmlExpr.cnt
 			var attrs = htmlExpr.attributes || htmlExpr.attrs
 			var style = htmlExpr.style
+			var mod = htmlExpr.module || htmlExpr.mod
 			var imp = htmlExpr.import
 			var js = htmlExpr.script || htmlExpr.js
 			var css = htmlExpr.stylesheet || htmlExpr.css
@@ -46,10 +47,18 @@ var _formatHtml_core = function(htmlExpr, head, body, isHead) {
 					_formatHtml_core({ import:wel }, head, body, isHead)
 					tag = tag || basename(wel, '.html')
 				} else if(ext === "js"){
-					_formatHtml_core({ script:wel, attrs:{ type:"module" }}, head, body, isHead)
+					_formatHtml_core({ mod:wel }, head, body, isHead)
 					tag = tag || basename(wel, '.js')
 				}
 				isHead = false
+			}
+			// js module
+			if(mod && !tag) {
+				tag = 'script'
+				attrs = attrs || {}
+				attrs.src = mod
+				attrs.type = 'module'
+				isHead = true
 			}
 			// html import
 			if(imp && !tag) {
@@ -118,9 +127,6 @@ var _formatHtml_style = function(style) {
 var _formatHtml_push = function(html, head, body, isHead) {
 	if(isHead) head.add(html)
 	else body.push(html)
-}
-var _formatHtml_getWelTag = function(wel) {
-	return basename(wel, '.html')
 }
 
 // Check that an object match an user expr

@@ -55,9 +55,9 @@ export function ajax(method, url, arg1, arg2) {
 		// body format
 		var contentType = args.contentType
 		if(contentType===undefined){
-      var bodyType = typeof body
-      var contentType = (bodyType==="object") ? 'application/json' : 'text/plain'
-    }
+			var bodyType = typeof body
+			var contentType = (bodyType==="object") ? 'application/json' : 'text/plain'
+		}
 		if(contentType) xhr.setRequestHeader('Content-Type', contentType)
 		// format 
 		if(contentType==='application/json')
@@ -180,13 +180,20 @@ const _formatHtml_core = function(htmlExpr, head, body, isHead) {
 			var attrs = htmlExpr.attributes || htmlExpr.attrs
 			var style = htmlExpr.style
 			var imp = htmlExpr.import
+			var mod = htmlExpr.module || htmlExpr.mod
 			var js = htmlExpr.script || htmlExpr.js
 			var css = htmlExpr.stylesheet || htmlExpr.css
 			var wel = htmlExpr.webelement || htmlExpr.wel
 			// web element
 			if(wel) {
-				_formatHtml_core({import:wel}, head, body, isHead)
-				tag = tag || _formatHtml_getWelTag(wel)
+				const ext = wel.split(".").pop()
+				if(ext === "html"){
+					_formatHtml_core({ import:wel }, head, body, isHead)
+					tag = tag || /([a-zA-Z0-9-_]*)\.html$/.exec(wel)[1]
+				} else if(ext === "js"){
+					_formatHtml_core({ mod:wel }, head, body, isHead)
+					tag = tag || /([a-zA-Z0-9-_]*)\.js$/.exec(wel)[1]
+				}
 				isHead = false
 			}
 			// html import
@@ -196,6 +203,14 @@ const _formatHtml_core = function(htmlExpr, head, body, isHead) {
 				attrs = attrs || {}
 				attrs.rel = 'import'
 				attrs.href = importUrl
+				isHead = true
+			}
+			// js module
+			if(mod && !tag) {
+				tag = 'script'
+				attrs = attrs || {}
+				attrs.src = mod
+				attrs.type = 'module'
 				isHead = true
 			}
 			// script
@@ -258,9 +273,6 @@ const _formatHtml_push = function(html, head, body, isHead) {
 	if(isHead) head.add(html)
 	else body.push(html)
 }
-const _formatHtml_getWelTag = function(wel) {
-	return /([a-zA-Z0-9-_]*)\.html$/.exec(wel)[1]
-}
 const _formatHtml_toUrl = function(url) {
 	return url
 }
@@ -271,7 +283,8 @@ const _formatHtml_toUrl = function(url) {
 const ImportCache = {}
 
 export function importHtml(html, el) {
-	html = _formatHtml(html, true)
+	const isHead = (typeof html !== "string" || el === undefined)
+	html = _formatHtml(html, isHead)
 	const head = html.head, body = html.body
 	const newEls = []
 /*

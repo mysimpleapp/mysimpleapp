@@ -24,6 +24,9 @@ Msa.paramsFiles = []
 // html expr
 require('./htmlExpr')
 
+// params
+require('./params')
+
 // main //////////////////////
 
 const help =
@@ -87,129 +90,6 @@ const main = async function(next){
 
 	} catch(err) { next(err) }
 	next()
-}
-
-// params /////////////////////////
-
-// default params
-Msa.params = {
-  log_level: 'DEBUG',
-  server: {
-    port: "dev",
-    https: {
-      activated: false
-    }
-  }
-}
-
-Msa.paramDefs = {}
-//Msa.paramsDescs = {}
-
-Msa.ParamDef = class {
-	constructor(key, kwargs){
-		this.key = key
-		Object.assign(this, kwargs)
-		// register
-		Msa.paramDefs[this.key] = this
-		// init value
-		this.init()
-	}
-}
-const ParamDefPt = Msa.ParamDef.prototype
-
-ParamDefPt.init = function() {
-	if(this.get() === undefined && this.defVal !== undefined)
-		this.set(this.defVal)
-}
-
-ParamDefPt.get = function() {
-	return getDeep(Msa.params, this.key)
-}
-
-ParamDefPt.set = function(val, kwargs) {
-	this.val = val
-	setDeep(Msa.params, this.key, val)
-	if(!kwargs || kwargs.save !== false)
-		this.save()
-}
-
-ParamDefPt.save = function() {
-	ParamDefSaveStack = ParamDefSaveStack.then(() => {
-		return new Promise(async (ok, ko) => {
-			try {
-				const paramFile = Msa.paramsFile[0]
-				if(!paramFile) throw "No params file to save in."
-				const params = JSON.parse(await readFile(paramsFile))
-				const key = this.key, val = this.val
-				setDeep(params, key, val)
-				await writeFile(paramsFile, JSON.stringify(params, null, 2))
-			} catch(err) { return ko(err) }
-			ok()
-		})
-	})
-}
-let ParamDefSaveStack = Promise.resolve()
-
-Msa.getParam = function(key) {
-	return getDeep(Msa.params, key)
-}
-
-Msa.setParam = function(key, val, kwargs) {
-	const def = Msa.paramDefs[key]
-	if(def) def.set(val, kwargs)
-	else setDeep(Msa.params, key, val)
-}
-
-/*
-Msa.registerParam = function(arg1, arg2){
-	const targ1 = typeof arg1
-	if(targ1 == "string")
-		_registerParam(arg1, arg2)
-	else if(targ1 == "object")
-		for(let key in arg1)
-			_registerParam(key, arg1[key])
-}
-const _registerParam = function(key, desc){
-	Msa.paramsDescs[key] = new Msa.ParamDesc(key, desc)
-	const val = Msa.getParam(key)
-	if(val === undefined && desc.defVal !== undefined)
-		Msa.setParam(key, desc.defVal)
-}
-*/
-function getDeep(obj, key){
-	const keys = key.split('.')
-	for(let k of keys){
-		obj = obj[k]
-		if(obj===undefined) return
-	}
-	return obj
-}
-/*
-Msa.setParam = function(key, val, kwargs){
-	// update val in Msa.params (synchronouly)
-	const desc = Msa.paramsDescs[key]
-	desc.val = val
-	_setParamInObj(Msa.params, key, val)
-	// save (asynchronously)
-	if(!kwargs || kwargs.save!==false) {
-		return new Promise(async (ok, ko) => {
-			try {
-				if(desc) await desc.save()
-			} catch(err) { return ko(err) }
-			ok()
-		})
-	}
-}
-*/
-function setDeep(obj, key, val) {
-	const keys = key.split('.'), len = keys.length
-	for(let i=0; i<len-1; ++i){
-		let k = keys[i], obj2 = obj[k]
-		if(obj2 === undefined)
-			obj2 = obj[k] = {}
-		obj = obj2
-	}
-	obj[keys[len-1]] = val
 }
 
 
@@ -523,10 +403,10 @@ const fileExists = function(path) {
 	})
 }
 
-const tryResolve = function(name) {
+const tryResolve = function(name, kwargs) {
 	var res
 	try {
-		res = require.resolve(name)
+		res = require.resolve(name, kwargs)
 	} catch(e) {}
 	return res
 }
