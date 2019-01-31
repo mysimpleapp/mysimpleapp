@@ -335,12 +335,14 @@ var requireMsaModules = function() {
 */
 var initMsaModule = function(mod, modDir) {
   // static files
-  mod.dirname = modDir
-  var staticDir = modDir+"/static"
-  fs.stat(staticDir, (err, stats) => {
-    if(!err && stats && stats.isDirectory())
-      mod.app.use(Msa.express.static(staticDir))
-  })
+  if(mod.checkStaticDir !== false){
+    mod.dirname = modDir
+    const staticDir = modDir+"/static"
+    fs.stat(staticDir, (err, stats) => {
+      if(!err && stats && stats.isDirectory())
+        mod.app.use(Msa.express.static(staticDir))
+    })
+  }
   // register module
   var key = mod.key
   if(key==='') Msa.mainMod = mod
