@@ -27,36 +27,34 @@ export function ajax(method, url, arg1, arg2) {
 	if(typeof arg1==="function") var onsuccess=arg1
 	else var args=arg1, onsuccess=arg2
 	// build & send XMLHttpRequest
-	var xhr = new XMLHttpRequest()
+	const xhr = new XMLHttpRequest()
 	// args
-	if(args) {
-		var query = args.query
-		var body = args.body
-		var headers = args.headers || args.header
-		// callbacks
-		for(var evt in args) {
-			if(evt.substring(0, 2)!="on") continue
-			else if(evt==="onbadperm")
-				xhr.onstatus401 = xhr.onstatus403 = args[evt]
-			else xhr[evt] = args[evt]
-		}
-		// res format
-		xhr.parseRes = args.parseRes
+	const query = args && args.query
+	const body = args && args.body
+	const headers = args && ( args.headers || args.header )
+	const loaderPlace = args && args.loaderPlace
+	const loader = args && args.loader
+	xhr.parseRes = args.parseRes
+	if(args)
+		for(let evt in args)
+			if(evt.substring(0, 2)==="on")
+				xhr[evt] = args[evt]
+	// onsuccess (deprecated)
+	if(onsuccess) {
+		console.warn("DEPRECATED way of using Msa.ajax !")
+		xhr.onsuccess = onsuccess
 	}
-	// onsuccess
-	if(onsuccess) xhr.onsuccess = onsuccess
 	// default onload
-	if(!xhr.onload) xhr.onload = _ajax_defaultOnload
+//	if(!xhr.onload) xhr.onload = _ajax_defaultOnload
 	// url (with query)
 	if(query) url = formatUrl(url, query)
 	xhr.open(method, url, true)
 	// body
 	if(body) {
 		// body format
-		var contentType = args.contentType
+		let contentType = args.contentType
 		if(contentType===undefined){
-			var bodyType = typeof body
-			var contentType = (bodyType==="object") ? 'application/json' : 'text/plain'
+			contentType = (typeof body==="object") ? 'application/json' : 'text/plain'
 		}
 		if(contentType) xhr.setRequestHeader('Content-Type', contentType)
 		// format 
@@ -69,16 +67,29 @@ export function ajax(method, url, arg1, arg2) {
 			xhr.setRequestHeader(h, headers[h])
 	// send request
 	xhr.send(body)
+	// loader
+	if(loaderPlace) placeLoader(loaderPlace, loader)
+	// output promise
+	return new Promise((ok, ko) => {
+		xhr.onload = evt => {
+			if(loaderPlace) removeLoader(loaderPlace)
+			const xhr = evt.target, status = xhr.status
+			if(status>=200 && status<300)
+				_ajax_parseRes(evt, ok)
+			if(status>=400)
+				_ajax_parseRes(evt, ko)
+		}
+	})
 }
-
-const _ajax_defaultOnload = function(evt) {
+/*
+const _ajax_defaultOnload = function(evt, ok, ko) {
 	var xhr = evt.target, status = xhr.status
-	_ajax_parseRes(evt, xhr["onstatus"+status])
 	if(status>=200 && status<300)
-		_ajax_parseRes(evt, xhr.onsuccess)
+		_ajax_parseRes(evt, ok)
 	if(status>=400)
-		_ajax_parseRes(evt, xhr.onerror)
+		_ajax_parseRes(evt, ko)
 }
+*/
 const _ajax_parseRes = function(evt, next){
 	if(!next) return
 	var xhr = evt.target
@@ -143,24 +154,21 @@ export function parseUrlArgs(str) {
 	return res
 }
 
-// formatHtml: format HTML expression to HTML object
+// formatHtml /////////////////////////////////////////////
+
+// format HTML expression to HTML object
 export function formatHtml(htmlExpr) {
 	return _formatHtml(htmlExpr, true)
 }
 const _formatHtml = function(htmlExpr, isHead) {
 	// fill head & body objects
-	var head = new Set(), body = []
+	const head = new Set(), body = []
 	_formatHtml_core(htmlExpr, head, body, isHead)
 	// format head & body to sring
-	var bodyStr = body.join('\n')
-	var headStr = "", firstHead = true
-	for(var h of head) {
-		if(firstHead) firstHead = false
-		else headStr += '\n'
-		headStr += h
+	return {
+		head: join(head, '\n'),
+		body: body.join('\n')
 	}
-	// return HTML string
-	return { head:headStr, body:bodyStr }
 }
 const _formatHtml_core = function(htmlExpr, head, body, isHead) {
 	var type = typeof htmlExpr
@@ -169,9 +177,9 @@ const _formatHtml_core = function(htmlExpr, head, body, isHead) {
 		_formatHtml_push(htmlExpr, head, body, isHead)
 	} else if(type==="object") {
 		// case array
-		var len = htmlExpr.length
+		const len = htmlExpr.length
 		if(len!==undefined) {
-			for(var i=0; i<len; ++i)
+			for(let i=0; i<len; ++i)
 				_formatHtml_core(htmlExpr[i], head, body, isHead)
 		// case object
 		} else {
@@ -277,25 +285,17 @@ const _formatHtml_toUrl = function(url) {
 	return url
 }
 
-// importHtml
+// importHtml ///////////////////////////////////
 
 // cache of promises on any content imported into document head
 const ImportCache = {}
 
 export function importHtml(html, el) {
-	const isHead = (typeof html !== "string" || el === undefined)
+//	const isHead = (typeof html !== "string" || el === undefined)
+	const isHead = (el === undefined)
 	html = _formatHtml(html, isHead)
 	const head = html.head, body = html.body
 	const newEls = []
-/*
-	let nbLoading = 1, nbErrs = 0
-	const waiter = () => {
-		if(--nbLoading===0) {
-			if(nbErrs>0 ) { if(onerror) onerror() }
-			else if(onload) onload(newEls)
-		}
-	}
-*/
 	const loads = []
 	if(head) {
 		// parse input head content
@@ -341,6 +341,37 @@ export function importOnCall(html, fun) {
 	}
 }
 
+// loader ///////////////////////////////////
+
+let loaderHtml = "TODO"
+let loaderInitialised = false
+
+export function setLoaderHtml(html) {
+	loaderHtml = html
+}
+
+function initLoader(){
+	if(loaderInitialised) return
+	loaderInitialised = true
+	importHtml(loaderHtml)
+}
+
+function placeLoader(place, html) {
+	initLoader()
+	if(typeof html === "object" && html.tag === undefined)
+		html.tag = "msa-loader"
+	importHtml(html, place).then(loader =>
+		place._msaLoader = loader)
+}
+
+function removeLoader(place) {
+	const loader = place._msaLoader
+	if(loader)
+		loader.forEach(l => l.remove())
+}
+
+// helpers ///////////////////////////////////
+
 function cloneEl(el) {
 	const el2 = document.createElement(el.tagName)
 	for(let att of el.attributes)
@@ -356,5 +387,15 @@ function deepGet(obj, key) {
 		obj = obj[k]
 	}
 	return obj
+}
+
+function join(cont, delim) {
+	let res = "", first = true
+	for(var c of cont) {
+		if(first) first = false
+		else res += delim
+		res += c
+	}
+	return res
 }
 
