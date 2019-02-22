@@ -1,3 +1,8 @@
+const { promisify:prm } = require('util')
+const fs = require('fs'),
+	readFile = prm(fs.readFile),
+	writeFile = prm(fs.writeFile)
+
 // default params
 Msa.params = {
   log_level: 'DEBUG',
@@ -43,12 +48,13 @@ ParamPt.save = function() {
 	ParamSaveStack = ParamSaveStack.then(() => {
 		return new Promise(async (ok, ko) => {
 			try {
-				const paramFile = Msa.paramsFile[0]
-				if(!paramFile) throw "No params file to save in."
-				const params = JSON.parse(await readFile(paramsFile))
+				const paramsFiles = Msa.paramsFiles,
+					path = paramsFiles && paramsFiles[0]
+				if(!path) throw "No params file to save in."
+				const params = JSON.parse(await readFile(path))
 				const key = this.key, val = this.val
 				setDeep(params, key, val)
-				await writeFile(paramsFile, JSON.stringify(params, null, 2))
+				await writeFile(path, JSON.stringify(params, null, 2))
 			} catch(err) { return ko(err) }
 			ok()
 		})

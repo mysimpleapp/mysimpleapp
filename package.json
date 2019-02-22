@@ -11,15 +11,8 @@
   "dependencies": {
     "@webcomponents/webcomponentsjs": "^2.2.1",
     "body-parser": "^1.18.3",
-    "drawmygame": "/home/nico/dev/drawmygame",
     "express": "^4.16.3",
     "htmlparser2": "^3.9.2",
-    "msa-admin": "/home/nico/dev/msa-admin",
-    "msa-app": "/home/nico/dev/msa-app",
-    "msa-db": "/home/nico/dev/msa-db",
-    "msa-fs": "/home/nico/dev/msa-fs",
-    "msa-params": "/home/nico/dev/msa-params",
-    "msa-user": "/home/nico/dev/msa-user",
-    "msa-utils": "/home/nico/dev/msa-utils"
+    "semver": "^5.6.0"
   }
 }
