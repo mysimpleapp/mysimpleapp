@@ -29,6 +29,10 @@ require('./htmlExpr')
 // params
 require('./params')
 
+new Msa.Param("modules", {
+	defVal: {}
+})
+
 // main //////////////////////
 
 const help =
@@ -64,8 +68,9 @@ const main = async function(){
 	}
 
 	// fill Msa.paramsFiles
+	const noInputParamFile = (paramsFiles.length === 0)
 	const defParamFile = join(__dirname, "msa_params.json")
-	if(await fileExists(defParamFile) || paramsFiles.length === 0)
+	if(noInputParamFile || await fileExists(defParamFile))
 		Msa.paramsFiles.push(defParamFile)
 	for(let f of paramsFiles)
 		Msa.paramsFiles.push(f)
@@ -76,8 +81,8 @@ const main = async function(){
 			const p = await readFile(f)
 			deepMerge(Msa.params, JSON.parse(p))
 		} catch(err) {
-			console.warn(`Could not read & parse params file "${f}"`)
-			console.log(err)
+			if(!noInputParamFile)
+				console.warn(`Could not read or parse params file "${f}"`)
 		}
 	}
 	for(let p of params)
@@ -113,7 +118,7 @@ function parseModDesc(desc) {
 			npmArg = name + '@' + npmArg
 	} else if(typeof desc === "string") {
 		npmArg = desc
-		if(desc.indexOf('@') > -1){
+		if(desc.indexOf('@') >= 0){
 			name = desc.split('@')[0]
 		} else {
 			name = desc.split('/').pop().split('.')[0]
@@ -122,7 +127,7 @@ function parseModDesc(desc) {
 	return { name, npmArg }
 }
 
-async function parsePackageFile(iKey, name) {
+async function parsePackageFile(name, kwargs) {
 	let key=null, deps={}
 	// read && parse package.json
 	const path = require.resolve(name),
@@ -131,7 +136,8 @@ async function parsePackageFile(iKey, name) {
 	const pack = packFile && JSON.parse(packFile)
 	if(pack) {
 		// check msa key
-		if(checkKey(iKey, pack.msaKey, name)) {
+		const iKey = kwargs && kwargs.key
+		if(!iKey || checkKey(iKey, pack.msaKey, name)) {
 			// get msa key
 			key = pack.msaKey
 			// get msa dependencies
@@ -214,12 +220,32 @@ function subApp_subApp(route) {
 
 // install //////////////////////////////////
 
-const installMsa = async function({ modules=null, yes=false, force=false, itf=null } = {}){
+const installMsa = async function({ mod=null, yes=false, force=false, itf=null } = {}){
+	// default install interface
 	if(!itf) itf = new Msa.InstallInterface({ yes, force })
-	if(modules === null)
-		modules = Msa.params.modules
-	for(let key in modules)
-		await itf.installMsaMod(key, modules[key])
+	if(mod)
+		// case mod given in input
+		await itf.installMsaMod(mod, { save:true })
+	else {
+		const mods = Msa.params.modules
+		if(Object.keys(mods).length === 0) {
+			// case: no module to install: propose default msa app modules
+			const res = await itf.question({
+				question: "Nothing to install. Would you like to install default Msa module app ?",
+				choices: ["y", "n"],
+				defVal: "y"
+			})
+			if(res === "y") {
+				// user accepted: install mod & save param
+				const appMod = "../msa-app"
+				await itf.installMsaMod(appMod, { save:true })
+				await Msa.setParam("modules", Object.assign(mods, { "$app": appMod }))
+			}
+		} else
+			// case install msa modules
+			for(let key in mods)
+				await itf.installMsaMod(mods[key], { key })
+	}
 }
 
 // interface
@@ -235,6 +261,10 @@ const InstallInterfacePt = Msa.InstallInterface.prototype
 
 InstallInterfacePt.log = function(...args){
 	console.log(...args)
+}
+
+InstallInterfacePt.warn = function(...args){
+	console.warn(...args)
 }
 
 InstallInterfacePt.exec = function(cmd, args, kwargs){
@@ -263,15 +293,11 @@ InstallInterfacePt.question = function(question){
 					res.push( await this.question(q) )
 				ok(res)
 			} else {
-				if(typeof question === "string") question = { question }
-				var questionStr = question.question
-				if(question.defVal !== undefined) questionStr += ` (default value: ${question.defVal} )`
-				if(question.choices !== undefined) questionStr += ` (possible values: ${question.choices.join(' / ')} )`
 				const rl = readline.createInterface({
 					input: process.stdin,
 					output: process.stdout
 				})
-				rl.question(questionStr +' ', answer => {
+				rl.question(formatQuestion(question)+" ", answer => {
 					rl.close()
 					if(answer==="" && question.defVal!==undefined) answer = question.defVal
 					ok(answer)
@@ -281,11 +307,31 @@ InstallInterfacePt.question = function(question){
 	})
 }
 
-InstallInterfacePt.questionParam = async function(param){
+function formatQuestion(q) {
+	// case type string
+	if(typeof q === "string") return q
+	// case type obj
+	let res = q.question
+	// choices
+	if(q.choices !== undefined) {
+		// defVal w/ choices
+		if(q.defVal !== undefined) {
+			const idx = q.choices.indexOf(q.defVal)
+			if(idx >= 0) q.choices[idx] = `[${q.defVal}]`
+		}
+		res += ` (possible values: ${q.choices.join(' / ')} )`
+	}
+	// defVal w/o choices
+	else if(q.defVal !== undefined)
+		res += ` (default value: ${q.defVal} )`
+	return res
+}
+
+InstallInterfacePt.questionParam = async function(arg){
 	let res = null
 	// select & format params to be questionned
-	let params = isArr(param) ? param : [param]
-	params = params.map(p => (typeof p === "string") ? { key:p } : p)
+	const args = isArr(arg) ? arg : [arg]
+	let params = args.map(a => (typeof a === "string") ? { key:a } : a)
 	if(!this.force) params = params.filter(p => Msa.getParam(p.key) === undefined)
 	// format questions
 	let questions = []
@@ -303,37 +349,37 @@ InstallInterfacePt.questionParam = async function(param){
 	return res
 }
 
-InstallInterfacePt.install = async function(mod, kwargs){
-	// check that this module has not already been installed by this itf (to avoid infinite loop)
-	if(this.installedMsaMods.indexOf(mod) > -1) return
-	this.installedMsaMods.push(mod)
-	// npm install
+InstallInterfacePt.install = async function(desc, kwargs){
+	const { name, npmArg } = parseModDesc(desc)
 	const dir = ( kwargs && kwargs.dir ) || Msa.dirname
-	var modPath = tryResolve(mod, { paths:[dir] })
-	if(this.force || !modPath) {
-		const npmArg = (kwargs && kwargs.npmArg) || mod
-		this.log(`### npm install ${npmArg}`)
-		await this.exec('npm', ['install', npmArg], { cwd:dir })
-		modPath = require.resolve(mod)
+	var path = tryResolve(name, { paths:[dir] })
+	if(this.force || !path) {
+		const save = ( kwargs && kwargs.save ) || false,
+			saveArg = save ? "--save" : "--no-save"
+		this.log(`### npm install ${npmArg} ${saveArg}`)
+		await this.exec('npm', ['install', npmArg, saveArg], { cwd:dir })
 	}
-	const modDir = dirname(modPath)
 }
 
-InstallInterfacePt.installMsaMod = async function(key, desc, kwargs){
-	// prevent infinite loop
-	if(this.installedMsaMods.indexOf(key) > -1) return
-	this.installedMsaMods.push(key)
-	// npm install
+InstallInterfacePt.installMsaMod = async function(desc, kwargs){
 	const pDesc = parseModDesc(desc),
 		{ name, npmArg } = pDesc
-	await this.install(name, Object.assign({}, kwargs, { npmArg, dir: Msa.dirname }))
+	// prevent infinite loop
+	if(this.installedMsaMods.indexOf(name) >= 0) return
+	this.installedMsaMods.push(name)
+	// npm install
+	await this.install(desc, { npmArg, dir: Msa.dirname })
+	// parse package.json file to get module key
+	const { key, deps } = await parsePackageFile(name, kwargs)
 	// register
 	registerMsaModule(key, pDesc)
+	// save as param, if requested
+	if(kwargs && kwargs.save)
+		Msa.setParam(`modules.${key}`, desc)
 	// install msa dependencies
 	// do it before exec msa_install.js, as it may require one of its deps
-	const { deps } = await parsePackageFile(key, name)
 	for(let depKey in deps)
-		await this.installMsaMod(depKey, deps[depKey], kwargs)
+		await this.installMsaMod(deps[depKey], { key:depKey })
 	// msa_install
 	const dir = dirname(Msa.resolve(key)),
 		msaInstallPath = tryResolve( join(dir, "msa_install") )
@@ -401,7 +447,7 @@ Msa.start = async function(key, desc){
 		{ name } = pDesc
 	registerMsaModule(key, pDesc)
 	// exec dependencies start before
-	const { deps } = await parsePackageFile(key, name)
+	const { deps } = await parsePackageFile(name, { key })
 	for(let depKey in deps)
 		await Msa.start(depKey, deps[depKey])
 	// exec msa_start.js (if any)

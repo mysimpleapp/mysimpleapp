@@ -37,11 +37,11 @@ ParamPt.get = function() {
 	return getDeep(Msa.params, this.key)
 }
 
-ParamPt.set = function(val, kwargs) {
+ParamPt.set = async function(val, kwargs) {
 	this.val = val
 	setDeep(Msa.params, this.key, val)
 	if(!kwargs || kwargs.save !== false)
-		this.save()
+		await this.save()
 }
 
 ParamPt.save = function() {
@@ -51,8 +51,11 @@ ParamPt.save = function() {
 				const paramsFiles = Msa.paramsFiles,
 					path = paramsFiles && paramsFiles[0]
 				if(!path) throw "No params file to save in."
-				const params = JSON.parse(await readFile(path))
-				const key = this.key, val = this.val
+				let params = {}
+				try {
+					params = JSON.parse(await readFile(path))
+				} catch(err) {}
+				const { key, val } = this
 				setDeep(params, key, val)
 				await writeFile(path, JSON.stringify(params, null, 2))
 			} catch(err) { return ko(err) }
@@ -66,9 +69,9 @@ Msa.getParam = function(key) {
 	return getDeep(Msa.params, key)
 }
 
-Msa.setParam = function(key, val, kwargs) {
+Msa.setParam = async function(key, val, kwargs) {
 	const def = Msa.paramDefs[key]
-	if(def) def.set(val, kwargs)
+	if(def) await def.set(val, kwargs)
 	else setDeep(Msa.params, key, val)
 }
 
