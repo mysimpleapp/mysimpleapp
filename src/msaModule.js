@@ -104,24 +104,8 @@ Msa.require = function(key){
 }
 
 Msa.Module = class {
-	constructor(key) {
-		this.key = key
+	constructor() {
 		this.app = Msa.subApp()
-	}
-	init(key, dir) {
-		// key
-		this.key = key
-		// static files
-		this.dirname = dir
-		if(this.checkStaticDir !== false){
-			const staticDir = dir+"/static"
-			fs.stat(staticDir, (err, stats) => {
-				if(!err && stats && stats.isDirectory())
-					this.app.use(express.static(staticDir))
-			})
-		}
-		// use module
-		Msa.modulesRouter.use('/'+key, this.app)
 	}
 }
 

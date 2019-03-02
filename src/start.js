@@ -1,10 +1,3 @@
-// require
-const { join, dirname } = require('path')
-
-const com = require('./com')
-
-// start //////////////////////////////////
-
 module.exports = async function() {
 	// create modules router
 	Msa.modulesRouter = Msa.express.Router()
@@ -13,18 +6,32 @@ module.exports = async function() {
 	for(let key in modules)
 		await Msa.start(key, modules[key])
 	// create msa router
-	const msaMod = new Msa.Module("msa")
-	msaMod.init("msa", Msa.dirname)
+	const msaMod = new Msa.Module()
+	initMsaMod("msa", msaMod, Msa.dirname)
 	// require msa modules 
 	for(let key in Msa.modules){
 		const modDir = Msa.resolve(key),
 			mod = Msa.require(key)
-		mod.init(key, modDir)
+		initMsaMod(key, mod, modDir)
 	}
 	// use main moduke
 	Msa.app = Msa.require("$app").app
 	// start server
 	startServer()
+}
+
+function initMsaMod(key, mod, dir) {
+	mod.msaKey = key
+	// static files
+	if(mod.checkStaticDir !== false){
+		const staticDir = join(dir, "static")
+		fs.stat(staticDir, (err, stats) => {
+			if(!err && stats && stats.isDirectory())
+				mod.app.use(Msa.express.static(staticDir))
+			})
+	}
+	// use module
+	Msa.modulesRouter.use('/'+key, mod.app)
 }
 
 const startedMods = {}
@@ -82,6 +89,10 @@ var startServer = function() {
 
 
 // utils
+
+const { join, dirname } = require('path')
+const fs = require('fs')
+const com = require('./com')
 
 function tryResolve(name, kwargs) {
 	let res = null
