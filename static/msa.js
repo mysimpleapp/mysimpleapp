@@ -34,7 +34,7 @@ export function ajax(method, url, arg1, arg2) {
 	const headers = args && ( args.headers || args.header )
 	const loaderPlace = args && args.loaderPlace
 	const loader = args && args.loader
-	xhr.parseRes = args.parseRes
+	xhr.parseRes = args && args.parseRes
 	if(args)
 		for(let evt in args)
 			if(evt.substring(0, 2)==="on")
@@ -70,7 +70,7 @@ export function ajax(method, url, arg1, arg2) {
 	// loader
 	if(loaderPlace) placeLoader(loaderPlace, loader)
 	// output promise
-	return new Promise((ok, ko) => {
+	const prm = new Promise((ok, ko) => {
 		xhr.onload = evt => {
 			if(loaderPlace) removeLoader(loaderPlace)
 			const xhr = evt.target, status = xhr.status
@@ -80,6 +80,8 @@ export function ajax(method, url, arg1, arg2) {
 				_ajax_parseRes(evt, ko)
 		}
 	})
+	if(xhr.onsuccess) prm.then(xhr.onsuccess)
+	return prm
 }
 /*
 const _ajax_defaultOnload = function(evt, ok, ko) {
@@ -358,6 +360,7 @@ function initLoader(){
 
 function placeLoader(place, html) {
 	initLoader()
+	if(!html) html = {}
 	if(typeof html === "object" && html.tag === undefined)
 		html.tag = "msa-loader"
 	importHtml(html, place).then(loader =>
