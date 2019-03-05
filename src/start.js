@@ -5,21 +5,10 @@ module.exports = async function() {
 	const modules = Msa.params.modules
 	for(let key in modules)
 		await Msa.start(key, modules[key])
-	// create "msa" module
-	const msaMod = new Msa.Module()
-	Msa.Modules["msa"] = {
-		name: "msa",
-		mod: msaMod
-	}
-	initMsaMod("msa", msaMod, Msa.dirname)
 	// require msa modules 
-	for(let key in modules){
+	for(let key in Msa.Modules){
 		// get name of module
 		const desc = Msa.Modules[key]
-		if(!desc) {
-			console.warn(`Msa module "${key}" not installed.`)
-			continue
-		}
 		const { name } = desc
 		// determine dir of module
 		const dir = await com.tryResolveDir(name)
@@ -28,23 +17,28 @@ module.exports = async function() {
 		if(!mod)
 			mod = desc.mod = new Msa.Module()
 		// init
-		initMsaMod(key, mod, dir)
+		await initMsaMod(key, mod, dir)
 	}
+	// create "msa" module
+	const msaMod = new Msa.Module()
+	Msa.Modules["msa"] = {
+		name: "msa",
+		mod: msaMod
+	}
+	await initMsaMod("msa", msaMod, Msa.dirname)
 	// use main moduke
 	Msa.app = Msa.require("$app").app
 	// start server
 	startServer()
 }
 
-function initMsaMod(key, mod, dir) {
+async function initMsaMod(key, mod, dir) {
 	mod.msaKey = key
 	// static files
 	if(mod.checkStaticDir !== false){
 		const staticDir = join(dir, "static")
-		fs.stat(staticDir, (err, stats) => {
-			if(!err && stats && stats.isDirectory())
-				mod.app.use(Msa.express.static(staticDir))
-			})
+		if(await fileExists(staticDir))
+			mod.app.use(Msa.express.static(staticDir))
 	}
 	// use module
 	Msa.modulesRouter.use('/'+key, mod.app)
@@ -105,8 +99,10 @@ var startServer = function() {
 
 // utils
 
+const { promisify:prm } = require('util')
 const { join, dirname } = require('path')
-const fs = require('fs')
+const fs = require('fs'),
+	access = prm(fs.access)
 const com = require('./com')
 
 function tryResolve(name, kwargs) {
@@ -115,5 +111,12 @@ function tryResolve(name, kwargs) {
 		res = require.resolve(name, kwargs)
 	} catch(_) {}
 	return res
+}
+
+async function fileExists(path) {
+	try {
+		await access(path)
+	} catch(_) { return false }
+	return true
 }
 
