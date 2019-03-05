@@ -1,18 +1,34 @@
 module.exports = async function() {
 	// create modules router
 	Msa.modulesRouter = Msa.express.Router()
-	// start msa modules
+	// call msa modules msa_start.js
 	const modules = Msa.params.modules
 	for(let key in modules)
 		await Msa.start(key, modules[key])
-	// create msa router
+	// create "msa" module
 	const msaMod = new Msa.Module()
+	Msa.Modules["msa"] = {
+		name: "msa",
+		mod: msaMod
+	}
 	initMsaMod("msa", msaMod, Msa.dirname)
 	// require msa modules 
-	for(let key in Msa.modules){
-		const modDir = Msa.resolve(key),
-			mod = Msa.require(key)
-		initMsaMod(key, mod, modDir)
+	for(let key in modules){
+		// get name of module
+		const desc = Msa.Modules[key]
+		if(!desc) {
+			console.warn(`Msa module "${key}" not installed.`)
+			continue
+		}
+		const { name } = desc
+		// determine dir of module
+		const dir = await com.tryResolveDir(name)
+		// require module (or create it in case module has no index.js)
+		let mod = Msa.tryRequire(key)
+		if(!mod)
+			mod = desc.mod = new Msa.Module()
+		// init
+		initMsaMod(key, mod, dir)
 	}
 	// use main moduke
 	Msa.app = Msa.require("$app").app
@@ -40,17 +56,16 @@ Msa.start = async function(key, desc){
 	let res = startedMods[key]
 	if(res !== undefined) return res
 	res = startedMods[key] = null
-	// register msa module
+	// register msa module (as it may be needed by some msa_start.js)
 	const pDesc = com.parseModDesc(desc),
 		{ name } = pDesc
 	com.registerMsaModule(key, pDesc)
-	// exec dependencies start before
+	// exec dependencies msa_start.js before
 	const { deps } = await com.parsePackageFile(name, { key })
 	for(let depKey in deps)
 		await Msa.start(depKey, deps[depKey])
 	// exec msa_start.js (if any)
-	const path = Msa.resolve(key),
-		dir = dirname(path),
+	const dir = await com.tryResolveDir(name),
 		msaStartPath = tryResolve( join(dir, "msa_start") )
 	if(msaStartPath) {
 		const msaStartPrm = require(msaStartPath)

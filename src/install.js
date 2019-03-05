@@ -9,15 +9,16 @@ const readline = require('readline')
 // depedencies that needs to wait first install
 let com
 
+const defaultAppMod = "../msa-app"
+
 // install //////////////////////////////////
 
 module.exports = async function({ mod=null, yes=false, force=false, itf=null } = {}){
 	// default install interface
 	if(!itf) itf = new Msa.InstallInterface({ yes, force })
 	// first install (if needed)
-	if(! await fileExists(join(Msa.dirname, "node_modules")))
-		await itf.exec("npm", ["install"], { cwd:Msa.dirname })
-	// installed dependencies
+	await firstInstall()
+	// require installed dependencies
 	com = require('./com')
 	// install mod(s)
 	if(mod)
@@ -27,22 +28,28 @@ module.exports = async function({ mod=null, yes=false, force=false, itf=null } =
 		const mods = Msa.params.modules
 		if(Object.keys(mods).length === 0) {
 			// case: no module to install: propose default msa app modules
-			const res = await itf.question({
-				question: "Nothing to install. Would you like to install default Msa module app ?",
-				choices: ["y", "n"],
-				defVal: "y"
-			})
-			if(res === "y") {
+			if(await questionInstallDefaultMsaMod(itf))
 				// user accepted: install mod & save param
-				const appMod = "../msa-app"
-				await itf.installMsaMod(appMod, { save:true })
-				await Msa.setParam("modules", Object.assign(mods, { "$app": appMod }))
-			}
+				await itf.installMsaMod(defaultAppMod, { save:true })
 		} else
 			// case install msa modules
 			for(let key in mods)
 				await itf.installMsaMod(mods[key], { key })
 	}
+}
+
+async function firstInstall() {
+	if(! await fileExists(join(Msa.dirname, "node_modules")))
+		await itf.exec("npm", ["install"], { cwd:Msa.dirname })
+}
+
+async function questionInstallDefaultMsaMod(itf) {
+	const res = await itf.question({
+		question: "Nothing to install. Would you like to install default Msa module app ?",
+		choices: ["y", "n"],
+		defVal: "y"
+	})
+	return (res === "y")
 }
 
 // interface
@@ -149,7 +156,7 @@ InstallInterfacePt.questionParam = async function(arg){
 InstallInterfacePt.install = async function(desc, kwargs){
 	const { name, npmArg } = com.parseModDesc(desc)
 	const dir = ( kwargs && kwargs.dir ) || Msa.dirname
-	var path = tryResolve(name, { paths:[dir] })
+	const path = await com.tryResolveDir(name, { dir })
 	if(this.force || !path) {
 		this.log(`### npm install ${npmArg}`)
 		await this.exec('npm', ['install', npmArg], { cwd:dir })
@@ -170,16 +177,22 @@ InstallInterfacePt.installMsaMod = async function(desc, kwargs){
 	com.registerMsaModule(key, pDesc)
 	// save as param, if requested
 	if(kwargs && kwargs.save)
-		Msa.setParam(`modules.${key}`, desc)
+		await saveMsaModule(key, desc)
 	// install msa dependencies
 	// do it before exec msa_install.js, as it may require one of its deps
 	for(let depKey in deps)
 		await this.installMsaMod(deps[depKey], { key:depKey })
 	// msa_install
-	const dir = dirname(Msa.resolve(key)),
+	const dir = await com.tryResolveDir(name),
 		msaInstallPath = tryResolve( join(dir, "msa_install") )
 	if(msaInstallPath)
 		await require(msaInstallPath)(this)
+}
+
+async function saveMsaModule(key, desc) {
+	const modsParam = Msa.getParam("modules")
+	Object.assign(modsParam, { [key]:desc })
+	Msa.setParam("modules", modsParam)
 }
 
 
