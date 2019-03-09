@@ -30,10 +30,9 @@ export function ajax(method, url, arg1, arg2) {
 	const xhr = new XMLHttpRequest()
 	// args
 	const query = args && args.query
-	const body = args && args.body
+	let body = args && args.body
 	const headers = args && ( args.headers || args.header )
-	const loaderPlace = args && args.loaderPlace
-	const loader = args && args.loader
+	const loadingDom = args && args.loadingDom
 	xhr.parseRes = args && args.parseRes
 	if(args)
 		for(let evt in args)
@@ -68,11 +67,14 @@ export function ajax(method, url, arg1, arg2) {
 	// send request
 	xhr.send(body)
 	// loader
-	if(loaderPlace) placeLoader(loaderPlace, loader)
+	if(loadingDom) {
+		initLoader()
+		loadingDom.classList.add("msa-loading")
+	}
 	// output promise
 	const prm = new Promise((ok, ko) => {
 		xhr.onload = evt => {
-			if(loaderPlace) removeLoader(loaderPlace)
+			if(loadingDom) loadingDom.classList.remove("msa-loading")
 			const xhr = evt.target, status = xhr.status
 			if(status>=200 && status<300)
 				_ajax_parseRes(evt, ok)
@@ -345,7 +347,49 @@ export function importOnCall(html, fun) {
 
 // loader ///////////////////////////////////
 
-let loaderHtml = "TODO"
+// default loader (can be modified by setLoaderHtml)
+let loaderHtml = `<style>
+
+	msa-loader {
+		height: 1.5em;
+		width: 1.5em;
+		background-position: center center;
+		background-repeat: no-repeat;
+		background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='fill:none; stroke:black; stroke-width:15'><path d='M15,50 a1,1 0 0,0 70,0' /></svg>");
+		animation: msa-loader-spin 1s linear infinite;
+	}
+
+	@keyframes msa-loader-spin {
+		from{transform:rotate(0deg)}
+		to{transform:rotate(360deg)}	
+	}
+</style>`
+
+// default loader style
+importHtml(`<style>
+	msa-loader {
+		display: none;
+		height: 1.5em;
+		width: 1.5em;
+		margin: auto;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+	}
+	msa-loader.msa-loading, .msa-loading msa-loader {
+		display: inline-block;
+	}
+
+	.msa-loading.msa-loading-invisible, .msa-loading .msa-loading-invisible {
+		visibility: hidden;
+	}
+	.msa-loading.msa-loading-hidden, .msa-loading .msa-loading-hidden {
+		display: none;
+	}
+
+</style>`)
+
 let loaderInitialised = false
 
 export function setLoaderHtml(html) {
@@ -356,21 +400,6 @@ function initLoader(){
 	if(loaderInitialised) return
 	loaderInitialised = true
 	importHtml(loaderHtml)
-}
-
-function placeLoader(place, html) {
-	initLoader()
-	if(!html) html = {}
-	if(typeof html === "object" && html.tag === undefined)
-		html.tag = "msa-loader"
-	importHtml(html, place).then(loader =>
-		place._msaLoader = loader)
-}
-
-function removeLoader(place) {
-	const loader = place._msaLoader
-	if(loader)
-		loader.forEach(l => l.remove())
 }
 
 // helpers ///////////////////////////////////
