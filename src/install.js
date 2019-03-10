@@ -17,7 +17,7 @@ module.exports = async function({ mod=null, yes=false, force=false, itf=null } =
 	// default install interface
 	if(!itf) itf = new Msa.InstallInterface({ yes, force })
 	// first install (if needed)
-	await firstInstall()
+	await firstInstall(itf)
 	// require installed dependencies
 	com = require('./com')
 	// install mod(s)
@@ -38,7 +38,7 @@ module.exports = async function({ mod=null, yes=false, force=false, itf=null } =
 	}
 }
 
-async function firstInstall() {
+async function firstInstall(itf) {
 	if(! await fileExists(join(Msa.dirname, "node_modules")))
 		await itf.exec("npm", ["install"], { cwd:Msa.dirname })
 }
