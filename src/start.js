@@ -1,4 +1,21 @@
+const numCPUs = 1
+
 module.exports = async function() {
+	if (cluster.isMaster) {
+		console.log(`Master ${process.pid} is running`)
+		for (let i = 0; i < numCPUs; i++) {
+			cluster.fork()
+		}
+		cluster.on('exit', (worker, code, signal) => {
+			console.log(`worker ${worker.process.pid} died`);
+			cluster.fork()
+		})
+	} else {
+		await startInstance()
+	}
+}
+
+async function startInstance() {
 	// create modules router
 	Msa.modulesRouter = Msa.express.Router()
 	// call msa modules msa_start.js
@@ -92,7 +109,8 @@ var startServer = function() {
   server.listen(port)
   // log
   var prot = isHttps ? "https" : "http"
-  console.log("Server ready: "+prot+"://localhost:"+port+"/")
+  console.log(`Worker ${process.pid} started`)
+console.log("Server ready: "+prot+"://localhost:"+port+"/")
 }
 
 
@@ -103,6 +121,7 @@ const { promisify:prm } = require('util')
 const { join, dirname } = require('path')
 const fs = require('fs'),
 	access = prm(fs.access)
+const cluster = require('cluster')
 const com = require('./com')
 
 function tryResolve(name, kwargs) {
