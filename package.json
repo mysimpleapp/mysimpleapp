@@ -1,18 +1,27 @@
 {
-  "name": "msa_server",
-  "version": "0.0.1",
-  "description": "MySimpleApp server",
+  "name": "@mysimpleapp/mysimpleapp",
+  "version": "0.1.0",
+  "description": "MySimpleApp is a framework to build Web applications.",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Nicolas CARREZ",
-  "license": "MIT",
   "dependencies": {
     "@webcomponents/webcomponentsjs": "^2.2.1",
     "body-parser": "^1.18.3",
     "express": "^4.16.3",
     "htmlparser2": "^3.9.2",
     "semver": "^5.6.0"
-  }
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mysimpleapp/mysimpleapp.git"
+  },
+  "author": "Nicolas CARREZ",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mysimpleapp/mysimpleapp/issues"
+  },
+  "homepage": "https://github.com/mysimpleapp/mysimpleapp#readme"
 }
