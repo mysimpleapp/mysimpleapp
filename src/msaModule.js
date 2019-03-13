@@ -39,10 +39,18 @@ exp.parseModDesc = function(desc) {
 			npmArg = name + '@' + npmArg
 	} else if(typeof desc === "string") {
 		npmArg = desc
-		if(desc.indexOf('@') >= 0){
-			name = desc.split('@')[0]
-		} else {
-			name = desc.split('/').pop().split('.')[0]
+		name = desc
+		let scoped = false
+		if(name.indexOf('@') >= 0){
+			const s = desc.split('@')
+			name = (s[0]=="") ? ("@"+s[1]) : s[0]
+			scoped = (s[0]=="")
+		}
+		if(!scoped && name.indexOf('/') >= 0){
+			const s = desc.split('/'), n = s.length
+			name = (s[n-1]=="") ? s[n-2] : s[n-1]
+			// remove extension
+			name = name.split('.')[0]
 		}
 	}
 	return { name, npmArg }
@@ -56,7 +64,7 @@ exp.parsePackageFile = async function(name, kwargs) {
 	const packFile = await tryReadFile(join(dir, "package.json"))
 	const pack = packFile && JSON.parse(packFile)
 	if(pack) {
-		// check msa key
+		// check msa key (if provided)
 		const iKey = kwargs && kwargs.key
 		if(!iKey || checkKey(iKey, pack.msaKey, name)) {
 			// get msa key
@@ -76,7 +84,7 @@ function checkKey(key, pKey, name) {
 			return false
 		}
 		if(key !== pKey) {
-			console.warn(`Msa module "${name}" installed as "${key}", has its msaKey set to "${pKey}" in its package.json file.`)
+			console.warn(`Msa module "${name}" installed as "${key}", whereas its msaKey set to "${pKey}" in its package.json file.`)
 			return false
 		}
 	}
