@@ -9,7 +9,7 @@ const readline = require('readline')
 // depedencies that needs to wait first install
 let com
 
-const defaultAppMod = "../msa-app"
+const defaultAppMod = "@mysimpleapp/msa-app"
 
 // install //////////////////////////////////
 
