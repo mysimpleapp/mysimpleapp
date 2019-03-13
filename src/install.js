@@ -97,15 +97,19 @@ InstallInterfacePt.question = function(question){
 					res.push( await this.question(q) )
 				ok(res)
 			} else {
-				const rl = readline.createInterface({
-					input: process.stdin,
-					output: process.stdout
-				})
-				rl.question(formatQuestion(question)+" ", answer => {
-					rl.close()
-					if(answer==="" && question.defVal!==undefined) answer = question.defVal
-					ok(answer)
-				})
+				if(this.yes && question.defVal!==undefined){
+					ok(question.defVal)
+				} else {
+					const rl = readline.createInterface({
+						input: process.stdin,
+						output: process.stdout
+					})
+					rl.question(formatQuestion(question)+" ", answer => {
+						rl.close()
+						if(answer==="" && question.defVal!==undefined) answer = question.defVal
+						ok(answer)
+					})
+				}
 			}
 		} catch(err) { return ko(err) }
 	})
