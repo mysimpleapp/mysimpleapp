@@ -1,6 +1,6 @@
 {
   "name": "@mysimpleapp/mysimpleapp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MySimpleApp is a framework to build Web applications.",
   "main": "index.js",
   "dependencies": {
