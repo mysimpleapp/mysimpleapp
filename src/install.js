@@ -158,9 +158,9 @@ InstallInterfacePt.questionParam = async function(arg){
 }
 
 InstallInterfacePt.install = async function(desc, kwargs){
-	const { name, npmArg } = com.parseModDesc(desc)
+	const { shortName, npmArg } = com.parseModDesc(desc)
 	const dir = ( kwargs && kwargs.dir ) || Msa.dirname
-	const path = await com.tryResolveDir(name, { dir })
+	const path = await com.tryResolveDir(shortName, { dir })
 	if(this.force || !path) {
 		this.log(`### npm install ${npmArg}`)
 		await this.exec('npm', ['install', npmArg], { cwd:dir })
@@ -168,17 +168,17 @@ InstallInterfacePt.install = async function(desc, kwargs){
 }
 
 InstallInterfacePt.installMsaMod = async function(desc, kwargs){
-	const pDesc = com.parseModDesc(desc),
-		{ name, npmArg } = pDesc
+	const { shortName, npmArg } = com.parseModDesc(desc)
 	// prevent infinite loop
-	if(this.installedMsaMods.indexOf(name) >= 0) return
-	this.installedMsaMods.push(name)
+	if(this.installedMsaMods.indexOf(shortName) >= 0) return
+	this.installedMsaMods.push(shortName)
 	// npm install
 	await this.install(desc, { npmArg, dir: Msa.dirname })
 	// parse package.json file to get module key
-	const { key, deps } = await com.parsePackageFile(name, kwargs)
+	const dir = await com.resolveDir(shortName)
+	const { name, key, deps } = await com.parsePackageFile(dir, kwargs)
 	// register
-	com.registerMsaModule(key, pDesc)
+	com.registerMsaModule(key, { name, dir })
 	// save as param, if requested
 	if(kwargs && kwargs.save)
 		await saveMsaModule(key, desc)
@@ -187,8 +187,7 @@ InstallInterfacePt.installMsaMod = async function(desc, kwargs){
 	for(let depKey in deps)
 		await this.installMsaMod(deps[depKey], { key:depKey })
 	// msa_install
-	const dir = await com.tryResolveDir(name),
-		msaInstallPath = tryResolve( join(dir, "msa_install") )
+	const msaInstallPath = tryResolve( join(dir, "msa_install") )
 	if(msaInstallPath)
 		await require(msaInstallPath)(this)
 }

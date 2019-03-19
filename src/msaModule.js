@@ -53,13 +53,11 @@ exp.parseModDesc = function(desc) {
 			name = name.split('.')[0]
 		}
 	}
-	return { name, npmArg }
+	return { shortName:name, npmArg }
 }
 
-exp.parsePackageFile = async function(name, kwargs) {
-	let key=null, deps={}
-	// do not use "resolve" to find module, as some may have no index.js
-	const dir = await exp.tryResolveDir(name)
+exp.parsePackageFile = async function(dir, kwargs) {
+	let name=null, key=null, deps={}
 	// read && parse package.json
 	const packFile = await tryReadFile(join(dir, "package.json"))
 	const pack = packFile && JSON.parse(packFile)
@@ -67,14 +65,13 @@ exp.parsePackageFile = async function(name, kwargs) {
 		// check msa key (if provided)
 		const iKey = kwargs && kwargs.key
 		if(!iKey || checkKey(iKey, pack.msaKey, name)) {
-			// get msa key
+			name = pack.name
 			key = pack.msaKey
-			// get msa dependencies
 			deps = pack.msaDependencies
 		}
 	} else
-		console.warn(`Msa module "${name}" has no package.json file.`)
-	return { key, deps }
+		console.warn(`There is no package.json file in this directory: ${dir}`)
+	return { name, key, deps }
 }
 
 function checkKey(key, pKey, name) {
@@ -92,47 +89,65 @@ function checkKey(key, pKey, name) {
 }
 
 // return dirname of a given package name
-exp.tryResolveDir = async function(name, kwargs){
+exp.tryResolveDir = async function(shortName, kwargs){
 	const dir = (kwargs && kwargs.dir) || Msa.dirname
 	// require.resolve is the best way to find most of modules
 	try {
-		return dirname(require.resolve(name), { paths:[dir] })
+		return dirname(require.resolve(shortName), { paths:[dir] })
 	} catch(_) {}
 	// for some msa modules without index.js, we must use this technique
-	const path = join(dir, "node_modules", name)
-	if(await fileExists(path))
-		return path
+	let path = join(dir, "node_modules", shortName)
+	if(await fileExists(path)) return path
+	path = join(dir, "node_modules/@mysimpleapp", shortName) // TODO: make this generic to any scope
+	if(await fileExists(path)) return path
 	return null
 }
 
+exp.resolveDir = async function(shortName, kwargs){
+	const dir = await exp.tryResolveDir(shortName, kwargs)
+	if(!dir) throw `ERROR: Could not resolve directory of ${shortName}`
+	return dir
+}
+
+function isModuleNotFoundError(err) {
+	return err.toString().startsWith('Error: Cannot find module')
+}
+
 Msa.tryResolve = function(key){
-	const desc = Msa.Modules[key]
-	if(!desc) return null
 	try {
-		return require.resolve(desc.name)
-	} catch(_) {}
+		return Msa.resolve(key)
+	} catch(err) {
+		if(isModuleNotFoundError(err)) {
+			return null
+		} else throw err
+	}
 	return null
 }
-Msa.resolve = function(key){
-	const path = Msa.tryResolve(key)
-	if(!path) throw(`Msa module "${key}" not registered !`)
-	return require.resolve(path)
+Msa.resolve = function(path){
+	const idx = path.indexOf("/")
+	const key = (idx > 0) ? path.substr(0, idx) : path
+	const subPath = (idx > 0) ? path.substr(idx) : ""
+	const desc = Msa.Modules[key]
+	if(!desc) throw(`Msa module "${key}" not registered !`)
+	return require.resolve(desc.dir + subPath)
 }
 Msa.tryRequire = function(key){
 	try {
 		return Msa.require(key)
-	} catch(_) {}
+	} catch(err) {
+		if(isModuleNotFoundError(err)) {
+			return null
+		} else throw err
+	}
 	return null
 }
-Msa.require = function(key){
-	const desc = Msa.Modules[key]
-	if(!desc) throw(`Msa module "${key}" not registered !`)
-	let mod = desc.mod
-	if(!mod) {
-		const path = Msa.resolve(key)
-		mod = desc.mod = require(path)
-	}
-	return mod
+Msa.require = function(path){
+	// case: modules without index.js
+	const mod = (path.indexOf('/') < 0) && Msa.Modules[path] && Msa.Modules[path].mod
+	if(mod) return mod
+	// normal case
+	const realPath = Msa.resolve(path)
+	return require(realPath)
 }
 
 Msa.Module = class {

@@ -43,7 +43,7 @@ async function startInstance() {
 		mod: msaMod
 	}
 	await initMsaMod("msa", msaMod, Msa.dirname)
-	// use main moduke
+	// use main module
 	Msa.app = Msa.require("$app").app
 	// start server
 	startServer()
@@ -68,16 +68,15 @@ Msa.start = async function(key, desc){
 	if(res !== undefined) return res
 	res = startedMods[key] = null
 	// register msa module (as it may be needed by some msa_start.js)
-	const pDesc = com.parseModDesc(desc),
-		{ name } = pDesc
-	com.registerMsaModule(key, pDesc)
+	const { shortName } = com.parseModDesc(desc),
+		dir = await com.resolveDir(shortName),
+		{ name, deps } = await com.parsePackageFile(dir, { key })
+	com.registerMsaModule(key, { name, dir })
 	// exec dependencies msa_start.js before
-	const { deps } = await com.parsePackageFile(name, { key })
 	for(let depKey in deps)
 		await Msa.start(depKey, deps[depKey])
 	// exec msa_start.js (if any)
-	const dir = await com.tryResolveDir(name),
-		msaStartPath = tryResolve( join(dir, "msa_start") )
+	const msaStartPath = tryResolve( join(dir, "msa_start") )
 	if(msaStartPath) {
 		const msaStartPrm = require(msaStartPath)
 		res = await msaStartPrm()
