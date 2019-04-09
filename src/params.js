@@ -14,7 +14,23 @@ Msa.params = {
   }
 }
 
+
+// Msa attrs & methods
+
 Msa.paramDefs = {}
+
+Msa.getParam = function(key) {
+	return getDeep(Msa.params, key)
+}
+
+Msa.setParam = async function(key, val, kwargs) {
+	const def = Msa.paramDefs[key]
+	if(def) await def.set(val, kwargs)
+	else setDeep(Msa.params, key, val)
+}
+
+
+// Param
 
 Msa.Param = class {
 	constructor(key, kwargs){
@@ -45,35 +61,24 @@ ParamPt.set = async function(val, kwargs) {
 }
 
 ParamPt.save = function() {
-	ParamSaveStack = ParamSaveStack.then(() => {
-		return new Promise(async (ok, ko) => {
-			try {
-				const paramsFiles = Msa.paramsFiles,
-					path = paramsFiles && paramsFiles[0]
-				if(!path) throw "No params file to save in."
-				let params = {}
-				try {
-					params = JSON.parse(await readFile(path))
-				} catch(err) {}
-				const { key, val } = this
-				setDeep(params, key, val)
-				await writeFile(path, JSON.stringify(params, null, 2))
-			} catch(err) { return ko(err) }
-			ok()
-		})
+	ParamSaveStack = ParamSaveStack.then(async () => {
+		const paramsFiles = Msa.paramsFiles,
+			path = paramsFiles && paramsFiles[0]
+		if(!path) throw "No params file to save in."
+		let params = {}
+		try {
+			params = JSON.parse(await readFile(path))
+		} catch(err) {}
+		const { key, val } = this
+		setDeep(params, key, val)
+		await writeFile(path, JSON.stringify(params, null, 2))
 	})
 }
 let ParamSaveStack = Promise.resolve()
 
-Msa.getParam = function(key) {
-	return getDeep(Msa.params, key)
-}
 
-Msa.setParam = async function(key, val, kwargs) {
-	const def = Msa.paramDefs[key]
-	if(def) await def.set(val, kwargs)
-	else setDeep(Msa.params, key, val)
-}
+
+// utils
 
 function getDeep(obj, key){
 	const keys = key.split('.')
