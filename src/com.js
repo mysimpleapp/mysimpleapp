@@ -1,5 +1,8 @@
 const com = module.exports = {}
 
+if(global.Msa === undefined)
+	global.Msa = global.MySimpleApp = {}
+
 require('./params')
 require('./htmlExpr')
 Object.assign(com, require('./msaModule'))

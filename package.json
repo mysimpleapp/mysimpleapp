@@ -1,14 +1,25 @@
 {
   "name": "@mysimpleapp/mysimpleapp",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "MySimpleApp is a framework to build Web applications.",
   "main": "index.js",
   "dependencies": {
+    "@mysimpleapp/msa-admin": "../msa-admin",
+    "@mysimpleapp/msa-db": "../msa-db",
+    "@mysimpleapp/msa-ideas": "../msa-ideas",
+    "@mysimpleapp/msa-page": "../msa-page",
+    "@mysimpleapp/msa-params": "../msa-params",
+    "@mysimpleapp/msa-sheet": "../msa-sheet",
+    "@mysimpleapp/msa-user": "../msa-user",
+    "@mysimpleapp/msa-utils": "../msa-utils",
+    "@mysimpleapp/msa-vote": "../msa-vote",
     "@webcomponents/webcomponentsjs": "^2.2.1",
     "body-parser": "^1.18.3",
     "express": "^4.16.3",
     "htmlparser2": "^3.9.2",
-    "semver": "^5.6.0"
+    "negoeco": "file:../negoeco",
+    "semver": "^5.6.0",
+    "sqlite": "^3.0.3"
   },
   "devDependencies": {},
   "scripts": {

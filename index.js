@@ -20,7 +20,7 @@ const help =
 
 Usage: node ${process.argv[1]} [ACTION] [MODULE] [OPTIONS]
 
-  ACTION: "install" or "start". If not provided, both actions will be executed.
+  ACTION: "install", or "start". If not provided, both actions will be executed.
 
   MODULE (install only): module to install. If not provided, all modules are installed.
 

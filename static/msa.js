@@ -296,7 +296,7 @@ const ImportCache = {}
 
 export function importHtml(html, el) {
 //	const isHead = (typeof html !== "string" || el === undefined)
-	const isHead = (el === undefined)
+	const isHead = el ? false : true
 	html = _formatHtml(html, isHead)
 	const head = html.head, body = html.body
 	const newEls = []
@@ -327,7 +327,7 @@ export function importHtml(html, el) {
 		bodyTemplate.innerHTML = body
 		for(let b of bodyTemplate.content.children) {
 			newEls.push(b)
-			if(el) el.appendChild(b)
+			if(el !== true) el.appendChild(b)
 		}
 	}
 	return new Promise((ok, ko) => {
@@ -338,10 +338,9 @@ export function importHtml(html, el) {
 }
 
 export function importOnCall(html, fun) {
-	return function(...args) {
-		importHtml(html).then(() => {
-			deepGet(window, fun)(...args)
-		})
+	return async function(...args) {
+		await importHtml(html)
+		return deepGet(window, fun)(...args)
 	}
 }
 
