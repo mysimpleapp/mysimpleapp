@@ -40,7 +40,7 @@ export function ajax(method, url, arg1, arg2) {
 				xhr[evt] = args[evt]
 	// onsuccess (deprecated)
 	if(onsuccess) {
-		console.warn("DEPRECATED way of using Msa.ajax !")
+		console.warn("DEPRECATED way of using Msa.ajax !\n"+(new Error().stack))
 		xhr.onsuccess = onsuccess
 	}
 	// default onload
@@ -337,12 +337,13 @@ export function importHtml(html, el) {
 	})
 }
 
-export function importOnCall(html, fun) {
+export function importOnCall(src, fun) {
 	return async function(...args) {
-		await importHtml(html)
-		return deepGet(window, fun)(...args)
+		const mod = await import(src)
+		return mod[fun](...args)
 	}
 }
+
 
 // loader ///////////////////////////////////
 
