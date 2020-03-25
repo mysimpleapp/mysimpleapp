@@ -50,7 +50,7 @@ const main = async function(){
 	// fill Msa.paramsFiles
 	const noInputParamFile = (paramsFiles.length === 0)
 	const defParamFile = join(__dirname, "msa_params.json")
-	if(noInputParamFile || await fileExists(defParamFile))
+	if(noInputParamFile && await fileExists(defParamFile))
 		Msa.paramsFiles.push(defParamFile)
 	for(let f of paramsFiles)
 		Msa.paramsFiles.push(f)
