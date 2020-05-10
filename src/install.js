@@ -190,6 +190,11 @@ InstallInterfacePt.installMsaMod = async function (desc, kwargs) {
 	const msaInstallPath = tryResolve(join(dir, "msa_install"))
 	if (msaInstallPath)
 		await require(msaInstallPath)(this)
+	// installMsaModule
+	const mod = Msa.tryRequire(key)
+	if (mod && mod.installMsaModule) {
+		await asPrm(mod.installMsaModule(this))
+	}
 }
 
 async function saveMsaModule(key, desc) {
@@ -218,3 +223,7 @@ function tryResolve(name, kwargs) {
 	return res
 }
 
+function asPrm(a) {
+	if (typeof a === "object" && a.then) return a
+	return new Promise((ok, ko) => ok(a))
+}
