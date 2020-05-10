@@ -30,21 +30,27 @@ async function startInstance() {
 		// determine dir of module
 		const dir = await com.tryResolveDir(name)
 		// require module (or create it in case module has no index.js)
-		let mod = Msa.tryRequire(key)
-		if (!mod)
-			mod = desc.mod = new Msa.Module()
+		const mod = Msa.tryRequire(key)
+		let msaMod
+		if (mod.startMsaModule) {
+			msaMod = await asPrm(mod.startMsaModule())
+		} else {
+			msaMod = new Msa.Module()
+			mod.msaMod = msaMod
+		}
 		// init
-		await initMsaMod(key, mod, dir)
+		await initMsaMod(key, msaMod, dir)
 	}
 	// create "msa" module
 	const msaMod = new Msa.Module()
 	Msa.Modules["msa"] = {
 		name: "msa",
-		mod: msaMod
+		msaMod
 	}
 	await initMsaMod("msa", msaMod, Msa.dirname)
 	// use main module
-	Msa.app = Msa.require("$app").app
+	const mainMod = await asPrm(Msa.require("$app").startMsaModule())
+	Msa.app = mainMod.app
 	// start server
 	startServer()
 }
@@ -138,3 +144,7 @@ async function fileExists(path) {
 	return true
 }
 
+function asPrm(a) {
+	if (typeof a === "object" && a.then) return a
+	return new Promise((ok, ko) => ok(a))
+}
