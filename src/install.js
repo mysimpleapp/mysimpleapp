@@ -183,13 +183,9 @@ InstallInterfacePt.installMsaMod = async function (desc, kwargs) {
 	if (kwargs && kwargs.save)
 		await saveMsaModule(key, desc)
 	// install msa dependencies
-	// do it before exec msa_install.js, as it may require one of its deps
+	// do it before exec installMsaModule, as it may require one of its deps
 	for (let depKey in deps)
 		await this.installMsaMod(deps[depKey], { key: depKey })
-	// msa_install
-	const msaInstallPath = tryResolve(join(dir, "msa_install"))
-	if (msaInstallPath)
-		await require(msaInstallPath)(this)
 	// installMsaModule
 	const mod = Msa.tryRequire(key)
 	if (mod && mod.installMsaModule) {

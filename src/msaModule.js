@@ -142,10 +142,6 @@ Msa.tryRequire = function (key) {
 	return null
 }
 Msa.require = function (path) {
-	// case: modules without index.js
-	const msaMod = (path.indexOf('/') < 0) && Msa.Modules[path] && Msa.Modules[path].msaMod
-	if (msaMod) return msaMod
-	// normal case
 	const realPath = Msa.resolve(path)
 	return require(realPath)
 }

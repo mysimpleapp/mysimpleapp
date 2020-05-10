@@ -18,29 +18,10 @@ module.exports = async function () {
 async function startInstance() {
 	// create modules router
 	Msa.modulesRouter = Msa.express.Router()
-	// call msa modules msa_start.js
+	// start msa modules
 	const modules = Msa.params.modules
 	for (let key in modules)
 		await Msa.start(key, modules[key])
-	// require msa modules 
-	for (let key in Msa.Modules) {
-		// get name of module
-		const desc = Msa.Modules[key]
-		const { name } = desc
-		// determine dir of module
-		const dir = await com.tryResolveDir(name)
-		// require module (or create it in case module has no index.js)
-		const mod = Msa.tryRequire(key)
-		let msaMod
-		if (mod.startMsaModule) {
-			msaMod = await asPrm(mod.startMsaModule())
-		} else {
-			msaMod = new Msa.Module()
-			mod.msaMod = msaMod
-		}
-		// init
-		await initMsaMod(key, msaMod, dir)
-	}
 	// create "msa" module
 	const msaMod = new Msa.Module()
 	Msa.Modules["msa"] = {
@@ -49,7 +30,7 @@ async function startInstance() {
 	}
 	await initMsaMod("msa", msaMod, Msa.dirname)
 	// use main module
-	const mainMod = await asPrm(Msa.require("$app").startMsaModule())
+	const mainMod = Msa.require("$app").msaMod
 	Msa.app = mainMod.app
 	// start server
 	startServer()
@@ -73,21 +54,25 @@ Msa.start = async function (key, desc) {
 	let res = startedMods[key]
 	if (res !== undefined) return res
 	res = startedMods[key] = null
-	// register msa module (as it may be needed by some msa_start.js)
+	// register msa module (as it may be needed by some startMsaModule)
 	const { shortName } = com.parseModDesc(desc),
 		dir = await com.resolveDir(shortName),
 		{ name, deps } = await com.parsePackageFile(dir, { key })
 	com.registerMsaModule(key, { name, dir })
-	// exec dependencies msa_start.js before
+	// start dependencies before
 	for (let depKey in deps)
 		await Msa.start(depKey, deps[depKey])
-	// exec msa_start.js (if any)
-	const msaStartPath = tryResolve(join(dir, "msa_start"))
-	if (msaStartPath) {
-		const msaStartPrm = require(msaStartPath)
-		res = await msaStartPrm()
-		if (res !== undefined) startedMods[key] = res
+	// require msa module (or create it in case module has no index.js)
+	const mod = Msa.tryRequire(key)
+	let msaMod
+	if (mod.startMsaModule) {
+		msaMod = await asPrm(mod.startMsaModule())
+	} else {
+		msaMod = new Msa.Module()
 	}
+	mod.msaMod = msaMod
+	// init
+	await initMsaMod(key, msaMod, dir)
 	return res
 }
 
