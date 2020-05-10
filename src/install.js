@@ -1,5 +1,5 @@
 // require
-const { promisify:prm } = require('util')
+const { promisify: prm } = require('util')
 const { join, dirname } = require('path')
 const fs = require('fs'),
 	access = prm(fs.access)
@@ -13,34 +13,34 @@ const defaultAppMod = "@mysimpleapp/msa-app"
 
 // install //////////////////////////////////
 
-module.exports = async function({ mod=null, yes=false, force=false, itf=null } = {}){
+module.exports = async function ({ mod = null, yes = false, force = false, itf = null } = {}) {
 	// default install interface
-	if(!itf) itf = new Msa.InstallInterface({ yes, force })
+	if (!itf) itf = new Msa.InstallInterface({ yes, force })
 	// first install (if needed)
 	await firstInstall(itf)
 	// require installed dependencies
 	com = require('./com')
 	// install mod(s)
-	if(mod)
+	if (mod)
 		// case mod given in input
-		await itf.installMsaMod(mod, { save:true })
+		await itf.installMsaMod(mod, { save: true })
 	else {
 		const mods = Msa.params.modules
-		if(Object.keys(mods).length === 0) {
+		if (Object.keys(mods).length === 0) {
 			// case: no module to install: propose default msa app modules
-			if(await questionInstallDefaultMsaMod(itf))
+			if (await questionInstallDefaultMsaMod(itf))
 				// user accepted: install mod & save param
-				await itf.installMsaMod(defaultAppMod, { save:true })
+				await itf.installMsaMod(defaultAppMod, { save: true })
 		} else
 			// case install msa modules
-			for(let key in mods)
+			for (let key in mods)
 				await itf.installMsaMod(mods[key], { key })
 	}
 }
 
 async function firstInstall(itf) {
-	if(! await fileExists(join(Msa.dirname, "node_modules")))
-		await itf.exec("npm", ["install"], { cwd:Msa.dirname })
+	if (! await fileExists(join(Msa.dirname, "node_modules")))
+		await itf.exec("npm", ["install"], { cwd: Msa.dirname })
 }
 
 async function questionInstallDefaultMsaMod(itf) {
@@ -55,7 +55,7 @@ async function questionInstallDefaultMsaMod(itf) {
 // interface
 
 Msa.InstallInterface = class {
-	constructor({ yes=false, force=false } = {}){
+	constructor({ yes = false, force = false } = {}) {
 		this.yes = yes
 		this.force = force
 		this.installedMsaMods = []
@@ -63,15 +63,15 @@ Msa.InstallInterface = class {
 }
 const InstallInterfacePt = Msa.InstallInterface.prototype
 
-InstallInterfacePt.log = function(...args){
+InstallInterfacePt.log = function (...args) {
 	console.log(...args)
 }
 
-InstallInterfacePt.warn = function(...args){
+InstallInterfacePt.warn = function (...args) {
 	console.warn(...args)
 }
 
-InstallInterfacePt.exec = function(cmd, args, kwargs){
+InstallInterfacePt.exec = function (cmd, args, kwargs) {
 	return new Promise((ok, ko) => {
 		try {
 			const spawn_kwargs = Object.assign({ stdio: 'inherit', cwd: Msa.dirname }, kwargs)
@@ -80,70 +80,70 @@ InstallInterfacePt.exec = function(cmd, args, kwargs){
 				if (code !== 0) ko(code)
 				else ok()
 			})
-		} catch(err) { return ko(err) }
+		} catch (err) { return ko(err) }
 	})
 }
 
-InstallInterfacePt.npm = function(...args){
+InstallInterfacePt.npm = function (...args) {
 	return this.exec('npm', ...args)
 }
 
-InstallInterfacePt.question = function(question){
+InstallInterfacePt.question = function (question) {
 	return new Promise(async (ok, ko) => {
 		try {
-			if(isArr(question)) {
+			if (isArr(question)) {
 				var res = []
-				for(var q of question)
-					res.push( await this.question(q) )
+				for (var q of question)
+					res.push(await this.question(q))
 				ok(res)
 			} else {
-				if(this.yes && question.defVal!==undefined){
+				if (this.yes && question.defVal !== undefined) {
 					ok(question.defVal)
 				} else {
 					const rl = readline.createInterface({
 						input: process.stdin,
 						output: process.stdout
 					})
-					rl.question(formatQuestion(question)+" ", answer => {
+					rl.question(formatQuestion(question) + " ", answer => {
 						rl.close()
-						if(answer==="" && question.defVal!==undefined) answer = question.defVal
+						if (answer === "" && question.defVal !== undefined) answer = question.defVal
 						ok(answer)
 					})
 				}
 			}
-		} catch(err) { return ko(err) }
+		} catch (err) { return ko(err) }
 	})
 }
 
 function formatQuestion(q) {
 	// case type string
-	if(typeof q === "string") return q
+	if (typeof q === "string") return q
 	// case type obj
 	let res = q.question
 	// choices
-	if(q.choices !== undefined) {
+	if (q.choices !== undefined) {
 		// defVal w/ choices
-		if(q.defVal !== undefined) {
+		if (q.defVal !== undefined) {
 			const idx = q.choices.indexOf(q.defVal)
-			if(idx >= 0) q.choices[idx] = `[${q.defVal}]`
+			if (idx >= 0) q.choices[idx] = `[${q.defVal}]`
 		}
 		res += ` (possible values: ${q.choices.join(' / ')} )`
 	}
 	// defVal w/o choices
-	else if(q.defVal !== undefined)
+	else if (q.defVal !== undefined)
 		res += ` (default value: ${q.defVal} )`
 	return res
 }
 
-InstallInterfacePt.questionParam = async function(arg){
+InstallInterfacePt.questionParam = async function (arg) {
 	let res = null
 	// select & format params to be questionned
 	const args = isArr(arg) ? arg : [arg]
-	let params = args.map(a => (typeof a === "string") ? { key:a } : a)
-	if(!this.force) params = params.filter(p => Msa.getParam(p.key) === undefined)
+	let params = args.map(a => (typeof a === "string") ? { key: a } : a)
+	if (!this.force) params = params.filter(p => Msa.getParam(p.key) === undefined)
 	// format questions
 	let questions = []
-	for(let p of params) {
+	for (let p of params) {
 		const paramKey = p.key, paramDef = Msa.paramDefs[paramKey]
 		const question = p.question || `Choose a value for this parameter "${paramKey}"`
 		const { choices, defVal } = Object.assign(p, paramDef)
@@ -152,25 +152,25 @@ InstallInterfacePt.questionParam = async function(arg){
 	// ask questions
 	res = await this.question(questions)
 	// update params
-	for(let i=0, len=params.length; i<len; ++i)
+	for (let i = 0, len = params.length; i < len; ++i)
 		Msa.setParam(params[i].key, res[i])
 	return res
 }
 
-InstallInterfacePt.install = async function(desc, kwargs){
+InstallInterfacePt.install = async function (desc, kwargs) {
 	const { shortName, npmArg } = com.parseModDesc(desc)
-	const dir = ( kwargs && kwargs.dir ) || Msa.dirname
+	const dir = (kwargs && kwargs.dir) || Msa.dirname
 	const path = await com.tryResolveDir(shortName, { dir })
-	if(this.force || !path) {
+	if (this.force || !path) {
 		this.log(`### npm install ${npmArg}`)
-		await this.exec('npm', ['install', npmArg], { cwd:dir })
+		await this.exec('npm', ['install', npmArg], { cwd: dir })
 	}
 }
 
-InstallInterfacePt.installMsaMod = async function(desc, kwargs){
+InstallInterfacePt.installMsaMod = async function (desc, kwargs) {
 	const { shortName, npmArg } = com.parseModDesc(desc)
 	// prevent infinite loop
-	if(this.installedMsaMods.indexOf(shortName) >= 0) return
+	if (this.installedMsaMods.indexOf(shortName) >= 0) return
 	this.installedMsaMods.push(shortName)
 	// npm install
 	await this.install(desc, { npmArg, dir: Msa.dirname })
@@ -180,21 +180,21 @@ InstallInterfacePt.installMsaMod = async function(desc, kwargs){
 	// register
 	com.registerMsaModule(key, { name, dir })
 	// save as param, if requested
-	if(kwargs && kwargs.save)
+	if (kwargs && kwargs.save)
 		await saveMsaModule(key, desc)
 	// install msa dependencies
 	// do it before exec msa_install.js, as it may require one of its deps
-	for(let depKey in deps)
-		await this.installMsaMod(deps[depKey], { key:depKey })
+	for (let depKey in deps)
+		await this.installMsaMod(deps[depKey], { key: depKey })
 	// msa_install
-	const msaInstallPath = tryResolve( join(dir, "msa_install") )
-	if(msaInstallPath)
+	const msaInstallPath = tryResolve(join(dir, "msa_install"))
+	if (msaInstallPath)
 		await require(msaInstallPath)(this)
 }
 
 async function saveMsaModule(key, desc) {
 	const modsParam = Msa.getParam("modules")
-	Object.assign(modsParam, { [key]:desc })
+	Object.assign(modsParam, { [key]: desc })
 	Msa.setParam("modules", modsParam)
 }
 
@@ -206,7 +206,7 @@ const { isArray: isArr } = Array
 async function fileExists(path) {
 	try {
 		await access(path)
-	} catch(_) { return false }
+	} catch (_) { return false }
 	return true
 }
 
@@ -214,7 +214,7 @@ function tryResolve(name, kwargs) {
 	let res = null
 	try {
 		res = require.resolve(name, kwargs)
-	} catch(_) {}
+	} catch (_) { }
 	return res
 }
 
