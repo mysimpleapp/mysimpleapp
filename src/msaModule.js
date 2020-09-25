@@ -110,7 +110,7 @@ exp.resolveDir = async function (shortName, kwargs) {
 }
 
 function isModuleNotFoundError(err) {
-	return err.toString().startsWith('Error: Cannot find module')
+	return err.code == "MODULE_NOT_FOUND"
 }
 
 Msa.tryResolve = function (key) {
@@ -121,7 +121,6 @@ Msa.tryResolve = function (key) {
 			return null
 		} else throw err
 	}
-	return null
 }
 Msa.resolve = function (path) {
 	const idx = path.indexOf("/")
@@ -132,14 +131,10 @@ Msa.resolve = function (path) {
 	return require.resolve(desc.dir + subPath)
 }
 Msa.tryRequire = function (key) {
-	try {
-		return Msa.require(key)
-	} catch (err) {
-		if (isModuleNotFoundError(err)) {
-			return null
-		} else throw err
-	}
-	return null
+	const realPath = Msa.tryResolve(key)
+	if (!realPath)
+		return null
+	return require(realPath)
 }
 Msa.require = function (path) {
 	const realPath = Msa.resolve(path)

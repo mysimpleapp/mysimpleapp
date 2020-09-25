@@ -63,13 +63,12 @@ Msa.start = async function (key, desc) {
 	for (let depKey in deps)
 		await Msa.start(depKey, deps[depKey])
 	// require msa module (or create it in case module has no index.js)
-	const mod = Msa.tryRequire(key)
+	const mod = Msa.require(key)
 	let msaMod
 	if (mod.startMsaModule) {
 		msaMod = await asPrm(mod.startMsaModule())
-	} else {
-		msaMod = new Msa.Module()
 	}
+	if (!msaMod) msaMod = new Msa.Module()
 	mod.msaMod = msaMod
 	// init
 	await initMsaMod(key, msaMod, dir)
