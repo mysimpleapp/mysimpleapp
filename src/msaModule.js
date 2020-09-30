@@ -105,7 +105,7 @@ exp.tryResolveDir = async function (shortName, kwargs) {
 
 exp.resolveDir = async function (shortName, kwargs) {
 	const dir = await exp.tryResolveDir(shortName, kwargs)
-	if (!dir) throw `ERROR: Could not resolve directory of ${shortName}`
+	if (!dir) throw new Error(`ERROR: Could not resolve directory of ${shortName}`)
 	return dir
 }
 
@@ -127,7 +127,7 @@ Msa.resolve = function (path) {
 	const key = (idx > 0) ? path.substr(0, idx) : path
 	const subPath = (idx > 0) ? path.substr(idx) : ""
 	const desc = Msa.Modules[key]
-	if (!desc) throw (`Msa module "${key}" not registered !`)
+	if (!desc) throw new Error(`Msa module "${key}" not registered !`)
 	return require.resolve(desc.dir + subPath)
 }
 Msa.tryRequire = function (key) {

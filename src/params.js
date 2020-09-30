@@ -64,7 +64,7 @@ ParamPt.save = function () {
 	ParamSaveStack = ParamSaveStack.then(async () => {
 		const paramsFiles = Msa.paramsFiles,
 			path = paramsFiles && paramsFiles[0]
-		if (!path) throw "No params file to save in."
+		if (!path) throw new Error("No params file to save in.")
 		let params = {}
 		try {
 			params = JSON.parse(await readFile(path))
