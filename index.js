@@ -69,10 +69,13 @@ const main = async function () {
 		deepMerge(Msa.params, JSON.parse(p))
 
 	// action
-	if (!action || action == "install")
+	if (!action || action == "install"){
 		await require('./src/install')({ mod, yes, force })
-	if (!action || action == "start")
+		process.exit()
+	}
+	if (!action || action == "start") {
 		await require('./src/start')()
+	}
 }
 
 

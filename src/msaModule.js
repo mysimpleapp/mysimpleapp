@@ -42,12 +42,16 @@ exp.parseModDesc = function (desc) {
 		name = desc
 		let scoped = false
 		if (name.indexOf('@') >= 0) {
+			// remove version, but not scope
+			// - mod@2.2.0 => mod
+			// - @scope/mod => @scope/mod
 			const s = desc.split('@')
 			name = (s[0] == "") ? ("@" + s[1]) : s[0]
 			scoped = (s[0] == "")
 		}
 		if (!scoped && name.indexOf('/') >= 0) {
 			const s = desc.split('/'), n = s.length
+			// remove dirname
 			name = (s[n - 1] == "") ? s[n - 2] : s[n - 1]
 			// remove extension
 			name = name.split('.')[0]

@@ -28,13 +28,15 @@ module.exports = async function ({ mod = null, yes = false, force = false, itf =
 		const mods = Msa.params.modules
 		if (Object.keys(mods).length === 0) {
 			// case: no module to install: propose default msa app modules
-			if (await questionInstallDefaultMsaMod(itf))
+			if (await questionInstallDefaultMsaMod(itf)) {
 				// user accepted: install mod & save param
 				await itf.installMsaMod(defaultAppMod, { save: true })
+			}
 		} else
 			// case install msa modules
-			for (let key in mods)
+			for (let key in mods) {
 				await itf.installMsaMod(mods[key], { key })
+			}
 	}
 }
 
@@ -58,6 +60,7 @@ Msa.InstallInterface = class {
 	constructor({ yes = false, force = false } = {}) {
 		this.yes = yes
 		this.force = force
+		this.installedMods = []
 		this.installedMsaMods = []
 	}
 }
@@ -163,20 +166,23 @@ InstallInterfacePt.install = async function (desc, kwargs) {
 	const path = await com.tryResolveDir(shortName, { dir })
 	if (this.force || !path) {
 		this.log(`### npm install ${npmArg}`)
-		await this.exec('npm', ['install', npmArg], { cwd: dir })
+		await this.exec('npm', ['install', '--no-save', npmArg], { cwd: dir })
 	}
 }
 
 InstallInterfacePt.installMsaMod = async function (desc, kwargs) {
 	const { shortName, npmArg } = com.parseModDesc(desc)
-	// prevent infinite loop
-	if (this.installedMsaMods.indexOf(shortName) >= 0) return
-	this.installedMsaMods.push(shortName)
+	// prevent useless npm install
+	if (this.installedMods.indexOf(shortName) >= 0) return
+	this.installedMods.push(shortName)
 	// npm install
 	await this.install(desc, { npmArg, dir: Msa.dirname })
 	// parse package.json file to get module key
 	const dir = await com.resolveDir(shortName)
 	const { name, key, deps } = await com.parsePackageFile(dir, kwargs)
+	// prevent infinite loop
+	if (this.installedMsaMods.indexOf(key) >= 0) return
+	this.installedMsaMods.push(key)
 	// register
 	com.registerMsaModule(key, { name, dir })
 	// save as param, if requested
